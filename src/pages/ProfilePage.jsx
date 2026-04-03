@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import DateInput from '../components/DateInput.jsx'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
 
@@ -16,7 +17,7 @@ const INIT_PROFILE = {
 const STATUS = { active:'Đang làm', probation:'Thử việc', leave:'Nghỉ phép', quit:'Đã nghỉ' }
 const GENDERS = [['','— Chọn —'],['male','Nam'],['female','Nữ'],['other','Khác']]
 const MARITAL = [['','— Chọn —'],['single','Độc thân'],['married','Đã kết hôn'],['divorced','Ly hôn']]
-const DEPTS = ['Kỹ thuật','Marketing','Kinh doanh','Vận hành','HR','Tài chính','Khác']
+const DEPTS = ['Kinh doanh','Vận hành','HR','Tài chính','Kỹ thuật','Marketing','BOD','Khác']
 
 function initials(name=''){return name.split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase()}
 
@@ -25,9 +26,9 @@ function Section({ icon, title, children, defaultOpen=true }) {
   return (
     <div className="section-block">
       <div className="section-header" onClick={()=>setOpen(p=>!p)}>
-        <i className={`section-header-icon fa-solid ${icon}`} style={{color:'var(--primary)',fontSize:'13px'}} />
+        <i className={`section-header-icon fa-light ${icon}`} style={{color:'var(--primary)',fontSize:'13px'}} />
         <span className="section-title">{title}</span>
-        <i className={`section-chevron fa-solid fa-chevron-down${open?' open':''}`} />
+        <i className={`section-chevron fa-light fa-chevron-down${open?' open':''}`} />
       </div>
       {open && <div className="section-body">{children}</div>}
     </div>
@@ -42,7 +43,20 @@ function Field({ label, k, form, setForm, type='text', opts, required }) {
         ? <select className="form-select" value={form[k]||''} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))}>
             {opts.map(([v,l])=><option key={v} value={v}>{l}</option>)}
           </select>
-        : <input className="form-input" type={type} value={form[k]||''} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} />
+        : type === 'date'
+          ? <DateInput value={form[k]||''} onChange={v=>setForm(p=>({...p,[k]:v}))} />
+         : <input 
+    className="form-input" 
+    type={type}
+    value={form[k]||''} 
+    onChange={e => {
+      const val = type === 'tel' 
+        ? e.target.value.replace(/\D/g,'').slice(0,10) 
+        : e.target.value
+      setForm(p=>({...p,[k]:val}))
+    }}
+    maxLength={type === 'tel' ? 10 : undefined}
+  />
       }
     </div>
   )
@@ -82,7 +96,7 @@ export default function ProfilePage() {
   function updateRow(key, idx, field, val) { setForm(p => ({ ...p, [key]: p[key].map((r,i)=>i===idx?{...r,[field]:val}:r) })) }
   function removeRow(key, idx) { setForm(p => ({ ...p, [key]: p[key].filter((_,i)=>i!==idx) })) }
 
-  const F = (props) => <Field {...props} form={form} setForm={setForm} />
+
 
   if (loading) return <div className="loading-screen" style={{minHeight:'60vh'}}><div className="spinner"/></div>
 
@@ -94,9 +108,9 @@ export default function ProfilePage() {
         <div className="profile-info">
           <h2>{form.full_name || 'Chưa cập nhật tên'}</h2>
           <div className="profile-meta">
-            {form.employee_code && <span className="profile-meta-item"><i className="fa-solid fa-hashtag" />{form.employee_code}</span>}
-            {form.position && <span className="profile-meta-item"><i className="fa-solid fa-briefcase" />{form.position}</span>}
-            {form.department && <span className="profile-meta-item"><i className="fa-solid fa-building" />{form.department}</span>}
+            {form.employee_code && <span className="profile-meta-item"><i className="fa-light fa-hashtag" />{form.employee_code}</span>}
+            {form.position && <span className="profile-meta-item"><i className="fa-light fa-briefcase" />{form.position}</span>}
+            {form.department && <span className="profile-meta-item"><i className="fa-light fa-building" />{form.department}</span>}
             {form.status && <span className={`badge ${form.status==='active'?'badge-green':form.status==='probation'?'badge-amber':form.status==='quit'?'badge-gray':'badge-blue'}`}>{STATUS[form.status]}</span>}
           </div>
         </div>
@@ -104,57 +118,58 @@ export default function ProfilePage() {
           <div style={{marginLeft:'auto',display:'flex',gap:'8px',alignItems:'center'}}>
             {success && <span style={{fontSize:'12px',color:'var(--green)'}}>✓ Đã lưu</span>}
             <button className="btn btn-primary" onClick={save} disabled={saving}>
-              <i className="fa-solid fa-floppy-disk" />
+              <i className="fa-light fa-floppy-disk" />
               {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
           </div>
         )}
       </div>
 
-      {error && <div className="alert alert-error"><i className="fa-solid fa-circle-exclamation"/>{error}</div>}
+      {error && <div className="alert alert-error"><i className="fa-light fa-circle-exclamation"/>{error}</div>}
 
       {/* Thông tin chung */}
       <Section icon="fa-user" title="Thông tin chung">
         <div className="form-row">
-          <F label="Họ và tên" k="full_name" required />
-          <F label="Mã nhân viên" k="employee_code" />
+          <Field label="Họ và tên" k="full_name" form={form} setForm={setForm} required />
+          <Field label="Mã nhân viên" k="employee_code" form={form} setForm={setForm} />
         </div>
         <div className="form-row">
-          <F label="Chức danh" k="position" />
-          <F label="Phòng ban" k="department" opts={[['','— Chọn —'],...DEPTS.map(d=>[d,d])]} />
+          <Field label="Chức danh" k="position" form={form} setForm={setForm} />
+          <Field label="Phòng ban" k="department" opts={[['','— Chọn —'],...DEPTS.map(d=>[d,d])]} form={form} setForm={setForm} />
         </div>
         <div className="form-row">
-          <F label="Ngày nhận việc" k="join_date" type="date" />
-          <F label="Trạng thái" k="status" opts={[['','— Chọn —'],...Object.entries(STATUS)]} />
+          <Field label="Ngày nhận việc" k="join_date" type="date" form={form} setForm={setForm} />
+          <Field label="Trạng thái" k="status" opts={[['','— Chọn —'],...Object.entries(STATUS)]} form={form} setForm={setForm} />
         </div>
         <div className="form-row">
-          <F label="Ngày sinh" k="dob" type="date" />
-          <F label="Giới tính" k="gender" opts={GENDERS} />
+          <Field label="Ngày sinh" k="dob" type="date" form={form} setForm={setForm} />
+          <Field label="Giới tính" k="gender" opts={GENDERS} form={form} setForm={setForm} />
         </div>
         <div className="form-row">
-          <F label="Tình trạng hôn nhân" k="marital_status" opts={MARITAL} />
-          <F label="Trình độ học vấn" k="education_level" />
+          {/* <Field label="Tình trạng hôn nhân" k="marital_status" opts={MARITAL} form={form} setForm={setForm} /> */}
+           <Field label="Nguyên quán" k="hometown" form={form} setForm={setForm} />
+          <Field label="Trình độ học vấn" k="education_level" form={form} setForm={setForm} />
         </div>
-        <F label="Nguyên quán" k="hometown" />
+       
       </Section>
 
       {/* Liên hệ */}
       <Section icon="fa-address-book" title="Thông tin liên hệ">
         <div className="form-row">
-          <F label="Email" k="email" type="email" />
-          <F label="Số điện thoại" k="phone" />
+          <Field label="Email" k="email" type="email" form={form} setForm={setForm} />
+          <Field label="Số điện thoại" k="phone" type="tel" form={form} setForm={setForm} />
         </div>
         <div style={{marginTop:'12px',marginBottom:'8px',fontWeight:'500',fontSize:'13px',color:'var(--text-2)'}}>Địa chỉ thường trú</div>
-        <F label="Số nhà, đường" k="permanent_address" />
+        <Field label="Số nhà, đường" k="permanent_address" form={form} setForm={setForm} />
         <div style={{marginTop:'12px',marginBottom:'8px',fontWeight:'500',fontSize:'13px',color:'var(--text-2)'}}>Địa chỉ hiện tại</div>
-        <F label="Số nhà, đường" k="current_address" />
+        <Field label="Số nhà, đường" k="current_address" form={form} setForm={setForm} />
       </Section>
 
       {/* Cá nhân */}
       <Section icon="fa-circle-info" title="Thông tin cá nhân" defaultOpen={false}>
         <div className="form-row">
-          <F label="Dân tộc" k="ethnicity" />
-          <F label="Tôn giáo" k="religion" />
+          <Field label="Dân tộc" k="ethnicity" form={form} setForm={setForm} />
+          <Field label="Tôn giáo" k="religion" form={form} setForm={setForm} />
         </div>
         <div className="form-group">
           <label className="form-label">Ghi chú</label>
@@ -165,23 +180,23 @@ export default function ProfilePage() {
       {/* Tài chính */}
       <Section icon="fa-piggy-bank" title="Thông tin tài chính" defaultOpen={false}>
         <div className="form-row">
-          <F label="Tên chủ tài khoản" k="bank_owner" />
-          <F label="Số tài khoản ngân hàng" k="bank_account" />
+          <Field label="Tên chủ tài khoản" k="bank_owner" form={form} setForm={setForm} />
+          <Field label="Số tài khoản ngân hàng" k="bank_account" form={form} setForm={setForm} />
         </div>
         <div className="form-row">
-          <F label="Tên ngân hàng" k="bank_name" />
-          <F label="Chi nhánh" k="bank_branch" />
+          <Field label="Tên ngân hàng" k="bank_name" form={form} setForm={setForm} />
+          <Field label="Chi nhánh" k="bank_branch" form={form} setForm={setForm} />
         </div>
-        <F label="Mã số thuế cá nhân" k="tax_code" />
+        <Field label="Mã số thuế cá nhân" k="tax_code" form={form} setForm={setForm} />
       </Section>
 
       {/* Giấy tờ */}
       <Section icon="fa-id-card" title="Giấy tờ tùy thân" defaultOpen={false}>
         <div className="form-row">
-          <F label="Số CCCD/CMND" k="id_number" />
-          <F label="Ngày cấp" k="id_issued_date" type="date" />
+          <Field label="Số CCCD/CMND" k="id_number" form={form} setForm={setForm} />
+          <Field label="Ngày cấp" k="id_issued_date" type="date" form={form} setForm={setForm} />
         </div>
-        <F label="Nơi cấp" k="id_issued_place" />
+        <Field label="Nơi cấp" k="id_issued_place" form={form} setForm={setForm} />
       </Section>
 
       {/* Học tập */}
@@ -214,11 +229,11 @@ export default function ProfilePage() {
                 <input className="form-input" value={row.type||''} onChange={e=>updateRow('education_history',idx,'type',e.target.value)} placeholder="Chính quy, Tại chức..." />
               </div>
             </div>
-            {canEdit && <button className="icon-btn" style={{color:'var(--red)',marginTop:'24px'}} onClick={()=>removeRow('education_history',idx)}><i className="fa-solid fa-trash-can"/></button>}
+            {canEdit && <button className="icon-btn" style={{color:'var(--red)',marginTop:'24px'}} onClick={()=>removeRow('education_history',idx)}><i className="fa-light fa-trash-can"/></button>}
           </div>
         ))}
         {canEdit && <button className="btn-add-row" onClick={()=>addRow('education_history',{from:'',to:'',degree:'',major:'',school:'',type:''})}>
-          <i className="fa-solid fa-plus"/> Thêm
+          <i className="fa-light fa-plus"/> Thêm
         </button>}
       </Section>
 
@@ -256,19 +271,19 @@ export default function ProfilePage() {
                 <textarea className="form-textarea" style={{minHeight:'60px'}} value={row.description||''} onChange={e=>updateRow('work_history',idx,'description',e.target.value)} />
               </div>
             </div>
-            {canEdit && <button className="icon-btn" style={{color:'var(--red)',marginTop:'24px'}} onClick={()=>removeRow('work_history',idx)}><i className="fa-solid fa-trash-can"/></button>}
+            {canEdit && <button className="icon-btn" style={{color:'var(--red)',marginTop:'24px'}} onClick={()=>removeRow('work_history',idx)}><i className="fa-light fa-trash-can"/></button>}
           </div>
         ))}
         {canEdit && <button className="btn-add-row" onClick={()=>addRow('work_history',{from:'',to:'',company:'',position:'',reference:'',reference_phone:'',description:''})}>
-          <i className="fa-solid fa-plus"/> Thêm
+          <i className="fa-light fa-plus"/> Thêm
         </button>}
       </Section>
 
       {canEdit && (
         <div style={{display:'flex',justifyContent:'flex-end',gap:'8px',marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid var(--border)'}}>
-          {success && <span style={{fontSize:'13px',color:'var(--green)',display:'flex',alignItems:'center',gap:'4px'}}><i className="fa-solid fa-circle-check"/>Đã lưu thành công!</span>}
+          {success && <span style={{fontSize:'13px',color:'var(--green)',display:'flex',alignItems:'center',gap:'4px'}}><i className="fa-light fa-circle-check"/>Đã lưu thành công!</span>}
           <button className="btn btn-primary" onClick={save} disabled={saving}>
-            <i className="fa-solid fa-floppy-disk"/>
+            <i className="fa-light fa-floppy-disk"/>
             {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
           </button>
         </div>

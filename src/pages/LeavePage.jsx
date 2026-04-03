@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import DateInput from '../components/DateInput.jsx'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
 
@@ -171,14 +172,14 @@ export default function LeavePage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Ngày bắt đầu<span className="req">*</span></label>
-                  <input className="form-input" type="date" value={form.from_date} onChange={e=>setForm(p=>({...p,from_date:e.target.value}))} />
+                  <DateInput value={form.from_date} onChange={v=>setForm(p=>({...p,from_date:v}))} />
                 </div>
               </div>
 
               {form.leave_type === 'full' && (
                 <div className="form-group">
                   <label className="form-label">Ngày kết thúc<span className="req">*</span></label>
-                  <input className="form-input" type="date" value={form.to_date} onChange={e=>setForm(p=>({...p,to_date:e.target.value}))} min={form.from_date} />
+                  <DateInput value={form.to_date} onChange={v=>setForm(p=>({...p,to_date:v}))} />
                 </div>
               )}
 

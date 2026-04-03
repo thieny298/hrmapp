@@ -14,7 +14,6 @@
   --text: #212f3f;
   --text-2: #6b7280;
   --text-3: #9ca3af;
-  --text-hover: #028858;
   --green: #3B6D11; --green-bg: #EAF3DE; --green-light: #d1fae5;
   --amber: #854F0B; --amber-bg: #FAEEDA;
   --red: #A32D2D; --red-bg: #FCEBEB; --red-light: #fee2e2;
@@ -54,7 +53,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .nav-section { padding: 8px 16px 3px; font-size: 10px; font-weight: 600; color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; transition: opacity 0.15s; }
 .sidebar.collapsed .nav-section { opacity: 0; height: 0; padding: 0; }
 
-.nav-parent { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 14px; margin: 0 8px; border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text); transition: background 0.12s, color 0.12s; user-select: none; white-space: nowrap; }
+.nav-parent { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 14px; margin: 0 8px; border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-2); transition: background 0.12s, color 0.12s; user-select: none; white-space: nowrap; }
 .nav-parent:hover { background: var(--bg); color: var(--text); }
 .nav-parent.open, .nav-parent.active { color: var(--primary); }
 .nav-parent.active { background: var(--primary-bg); }
@@ -65,8 +64,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .sidebar.collapsed .nav-label, .sidebar.collapsed .nav-chevron { display: none; }
 .sidebar.collapsed .nav-parent { justify-content: center; padding: 9px; }
 
-.nav-children { overflow: hidden; max-height: 0; transition: max-height 0.25s ease; }
-.nav-children.open { max-height: 400px; margin: 0 0 15px 30px;}
+.nav-children { overflow: hidden; max-height: 0; transition: max-height 0.25s ease;margin: 0 0 15px 30px; }
+.nav-children.open { max-height: 400px; }
 .sidebar.collapsed .nav-children { display: none; }
 
 .nav-child { display: flex; align-items: center;gap: 12px; padding: 10px 12px 10px 14px; margin: 0 8px; border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 400; color: var(--text); transition: background 0.12s, color 0.12s; white-space: nowrap; }
@@ -266,3 +265,19 @@ tbody tr:hover td { background: var(--primary-light); }
   .form-row, .form-row-3 { grid-template-columns: 1fr; }
   .kanban { grid-template-columns: 1fr; }
 }
+
+/* DATEPICKER */
+.datepicker-wrapper { width: 100%; }
+.react-datepicker-wrapper { width: 100%; }
+.react-datepicker__input-container { width: 100%; }
+.react-datepicker { font-family: var(--font) !important; border: 1px solid var(--border) !important; border-radius: var(--radius-lg) !important; box-shadow: 0 8px 24px rgba(0,0,0,0.1) !important; }
+.react-datepicker__header { background: var(--surface) !important; border-bottom: 1px solid var(--border) !important; border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important; padding: 12px !important; }
+.react-datepicker__current-month { font-size: 13px !important; font-weight: 600 !important; color: var(--text) !important; }
+.react-datepicker__day-name { color: var(--text-2) !important; font-size: 11px !important; font-weight: 500 !important; }
+.react-datepicker__day { font-size: 12px !important; border-radius: var(--radius) !important; color: var(--text) !important; }
+.react-datepicker__day:hover { background: var(--primary-bg) !important; color: var(--primary) !important; }
+.react-datepicker__day--selected { background: var(--primary) !important; color: #fff !important; }
+.react-datepicker__day--today { font-weight: 600 !important; color: var(--primary) !important; }
+.react-datepicker__day--disabled { color: var(--text-3) !important; }
+.react-datepicker__navigation-icon::before { border-color: var(--text-2) !important; }
+.react-datepicker__year-select, .react-datepicker__month-select { font-family: var(--font) !important; font-size: 12px !important; border: 1px solid var(--border) !important; border-radius: var(--radius) !important; padding: 2px 4px !important; color: var(--text) !important; background: var(--surface) !important; }
