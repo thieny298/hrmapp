@@ -43,7 +43,7 @@ export default function EmployeesPage() {
   async function save() {
     if (!form.full_name?.trim()) { setError('Vui lòng nhập họ tên'); return }
     setSaving(true); setError('')
-    const payload = { full_name: form.full_name, department: form.department, position: form.position, status: form.status, email: form.email, phone: form.phone, join_date: form.join_date, notes: form.notes }
+    const payload = { full_name: form.full_name, department: form.department, position: form.position, status: form.status, email: form.email, phone: form.phone, join_date: form.join_date || null, notes: form.notes }
     const { error } = modal === 'add'
       ? await supabase.from('employee_profiles').insert(payload)
       : await supabase.from('employee_profiles').update(payload).eq('id', form.id)
