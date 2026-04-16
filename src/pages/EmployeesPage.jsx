@@ -26,7 +26,7 @@ export default function EmployeesPage() {
 
   async function fetchEmployees() {
     setLoading(true)
-    const { data } = await supabase.from('employees').select('*').order('full_name')
+    const { data } = await supabase.from('employee_profiles').select('*').order('full_name')
     setEmployees(data || [])
     setLoading(false)
   }
@@ -45,8 +45,8 @@ export default function EmployeesPage() {
     setSaving(true); setError('')
     const payload = { full_name: form.full_name, department: form.department, position: form.position, status: form.status, email: form.email, phone: form.phone, join_date: form.join_date, notes: form.notes }
     const { error } = modal === 'add'
-      ? await supabase.from('employees').insert(payload)
-      : await supabase.from('employees').update(payload).eq('id', form.id)
+      ? await supabase.from('employee_profiles').insert(payload)
+      : await supabase.from('employee_profiles').update(payload).eq('id', form.id)
     if (error) setError(error.message)
     else { fetchEmployees(); setModal(null) }
     setSaving(false)
@@ -54,7 +54,7 @@ export default function EmployeesPage() {
 
   async function del(id) {
     if (!confirm('Xoá nhân viên này?')) return
-    await supabase.from('employees').delete().eq('id', id)
+    await supabase.from('employee_profiles').delete().eq('id', id)
     fetchEmployees()
   }
 
