@@ -9,7 +9,7 @@ const STATUS_BADGE = { active: 'badge-green', probation: 'badge-amber', leave: '
 
 function initials(name = '') { return name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase() }
 
-const EMPTY_FORM = { full_name: '', department: DEPTS[0], position: '', status: 'active', email: '', phone: '', join_date: new Date().toISOString().slice(0, 10), notes: '' }
+const EMPTY_FORM = { full_name: '', department: DEPTS[0], position: '', status: 'active', email: '', phone: '', join_date: new Date().toISOString().slice(0, 10),   dob: '',  notes: '' }
 
 export default function EmployeesPage() {
   const { profile } = useAuth()
