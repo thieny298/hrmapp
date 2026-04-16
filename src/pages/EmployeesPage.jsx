@@ -26,7 +26,7 @@ export default function EmployeesPage() {
 
   async function fetchEmployees() {
     setLoading(true)
-    const { data } = await supabase.from('employee_profiles').select('*').order('full_name')
+    const { data } = await supabase.from('employee_profiles').select('*').order('created_at', { ascending: false })
     setEmployees(data || [])
     setLoading(false)
   }
@@ -51,7 +51,7 @@ const payload = {
   email: form.email, 
   phone: form.phone, 
   join_date: form.join_date || null, 
-  birth_date: form.birth_date || null,  
+  dob: form.dob || null,  
   notes: form.notes 
 }
     const { error } = modal === 'add'
