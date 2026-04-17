@@ -82,15 +82,22 @@ export default function ProfilePage() {
     setLoading(false)
   }
 
-  async function save() {
-    setSaving(true); setError(''); setSuccess(false)
-    const payload = { ...form, user_id: authProfile.id }
-    const { error } = await supabase.from('employee_profiles').upsert(payload, { onConflict: 'user_id' })
-    if (error) setError(error.message)
-    else setSuccess(true)
-    setSaving(false)
-    setTimeout(() => setSuccess(false), 3000)
-  }
+async function save() {
+  setSaving(true); setError(''); setSuccess(false)
+  
+  // Convert empty string dates to null
+  const DATE_FIELDS = ['join_date', 'dob', 'id_issued_date']
+  const payload = { ...form, user_id: authProfile.id }
+  DATE_FIELDS.forEach(f => {
+    if (!payload[f]) payload[f] = null
+  })
+
+  const { error } = await supabase.from('employee_profiles').upsert(payload, { onConflict: 'user_id' })
+  if (error) setError(error.message)
+  else setSuccess(true)
+  setSaving(false)
+  setTimeout(() => setSuccess(false), 3000)
+}
 
   function addRow(key, template) { setForm(p => ({ ...p, [key]: [...(p[key]||[]), template] })) }
   function updateRow(key, idx, field, val) { setForm(p => ({ ...p, [key]: p[key].map((r,i)=>i===idx?{...r,[field]:val}:r) })) }
