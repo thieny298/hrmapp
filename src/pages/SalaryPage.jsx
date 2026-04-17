@@ -15,7 +15,7 @@ export default function SalaryPage() {
   async function fetchSalaries() {
     if (!profile?.id) return
     setLoading(true)
-    const { data } = await supabase.from('salary_records').select('*').eq('user_id', profile.id).order('period', { ascending: false })
+    const { data } = await supabase.from('salary_payrolls').select('*').eq('user_id', profile.id).order('period', { ascending: false })
     setSalaries(data || [])
     setLoading(false)
   }

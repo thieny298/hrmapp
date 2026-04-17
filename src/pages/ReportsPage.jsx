@@ -10,8 +10,8 @@ export default function ReportsPage() {
   async function fetchData() {
     setLoading(true)
     const [empRes, taskRes, custRes] = await Promise.all([
-      supabase.from('employees').select('status, department'),
-      supabase.from('tasks').select('status, priority, assigned_to, assignee:profiles!tasks_assigned_to_fkey(full_name)'),
+      supabase.from('employee_profiles').select('status, department'),
+      supabase.from('tasks').select('status, priority, assigned_to, assignee:user_profiles!tasks_assigned_to_fkey(full_name)'),
       supabase.from('customers').select('status, industry'),
     ])
     setData({ employees: empRes.data || [], tasks: taskRes.data || [], customers: custRes.data || [] })

@@ -20,7 +20,7 @@ export default function UsersPage() {
 
   async function fetchUsers() {
     setLoading(true)
-    const { data } = await supabase.from('profiles').select('*').order('full_name')
+    const { data } = await supabase.from('user_profiles').select('*').order('full_name')
     setUsers(data || [])
     setLoading(false)
   }
@@ -56,12 +56,12 @@ export default function UsersPage() {
 
       // Cập nhật role trong profiles
       if (data.user) {
-        await supabase.from('profiles').upsert({ id: data.user.id, email: form.email, full_name: form.full_name, role: form.role })
+        await supabase.from('user_profiles').upsert({ id: data.user.id, email: form.email, full_name: form.full_name, role: form.role })
       }
       setSuccess('Tạo tài khoản thành công! Người dùng cần xác nhận email.')
     } else {
       // Chỉ cập nhật profile (không đổi password ở đây)
-      const { error } = await supabase.from('profiles').update({ full_name: form.full_name, role: form.role }).eq('id', form.id)
+      const { error } = await supabase.from('user_profiles').update({ full_name: form.full_name, role: form.role }).eq('id', form.id)
       if (error) { setError(error.message); setSaving(false); return }
       setSuccess('Cập nhật thành công!')
       fetchUsers()

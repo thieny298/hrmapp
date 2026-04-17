@@ -29,7 +29,7 @@ export default function AttendancePage() {
     setLoading(true)
     const from = `${year}-${String(month + 1).padStart(2, '0')}-01`
     const to = `${year}-${String(month + 1).padStart(2, '0')}-${String(getDaysInMonth(year, month)).padStart(2, '0')}`
-    const { data } = await supabase.from('attendance').select('*')
+    const { data } = await supabase.from('attendance_logs').select('*')
       .eq('user_id', profile.id).gte('date', from).lte('date', to).order('date')
     setRecords(data || [])
     setTodayRecord((data || []).find(r => r.date === today) || null)
@@ -52,7 +52,7 @@ export default function AttendancePage() {
       lateMinutes = totalMin - startMin
     }
 
-    const { error } = await supabase.from('attendance').insert({
+    const { error } = await supabase.from('attendance_logs').insert({
       user_id: profile.id,
       date: today,
       check_in: checkInTime,

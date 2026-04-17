@@ -32,11 +32,11 @@ export default function TasksPage() {
     setLoading(true)
     const [tasksRes, membersRes, custRes] = await Promise.all([
       (() => {
-        let q = supabase.from('tasks').select('*, assignee:profiles!tasks_assigned_to_fkey(id,full_name), customer:customers(id,name)').order('created_at', { ascending: false })
+        let q = supabase.from('tasks').select('*, assignee:user_profiles!tasks_assigned_to_fkey(id,full_name), customer:customers(id,name)').order('created_at', { ascending: false })
         if (isEmployee) q = q.eq('assigned_to', profile.id)
         return q
       })(),
-      supabase.from('profiles').select('id, full_name').order('full_name'),
+      supabase.from('user_profiles').select('id, full_name').order('full_name'),
       supabase.from('customers').select('id, name').eq('status', 'active').order('name'),
     ])
     setTasks(tasksRes.data || [])
