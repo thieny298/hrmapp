@@ -22,14 +22,14 @@ export default function DashboardPage() {
     if (!profile?.id) return
     setLoading(true)
     const [attendRes, taskRes] = await Promise.all([
-      supabase.from('attendance').select('*').eq('user_id', profile.id).eq('date', today).single(),
+      supabase.from('attendance_logs').select('*').eq('user_id', profile.id).eq('date', today).single(),
       supabase.from('tasks').select('status').eq('assigned_to', profile.id),
     ])
     setTodayRecord(attendRes.data || null)
 
     const tasks = taskRes.data || []
     setTaskStats({
-      running: tasks.filter(t => t.status === 'doing').length,
+      running: tasks.filter(t => t.status === 'in_progress').length,
       pending: tasks.filter(t => t.status === 'todo' || t.status === 'review').length,
       ended: tasks.filter(t => t.status === 'done').length,
       total: tasks.length,
@@ -56,7 +56,7 @@ export default function DashboardPage() {
       lateMinutes = totalMinutes - startMinutes
     }
 
-    const { error } = await supabase.from('attendance').insert({
+    const { error } = await supabase.from('attendance_logs').insert({
       user_id: profile.id,
       date: today,
       check_in: checkInTime,
