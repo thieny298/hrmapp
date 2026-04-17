@@ -28,6 +28,7 @@ const PAGE_TITLES = {
   '/luong': 'Bảng lương',
   '/tasks': 'Công việc',
   '/customers': 'Khách hàng',
+  '/customers/:id': 'Chi tiết khách hàng',
   '/reports': 'Báo cáo & Thống kê',
   '/users': 'Quản lý người dùng',
 }
@@ -133,7 +134,7 @@ const [openGroups, setOpenGroups] = useState({})
 
       <div className={`main${collapsed ? ' collapsed' : ''}`}>
         <header className="topbar">
-          <h1 className="page-title">{PAGE_TITLES[location.pathname] || 'Optways'}</h1>
+          <h1 className="page-title">{PAGE_TITLES[location.pathname] || (location.pathname.startsWith('/customers/') ? 'Chi tiết khách hàng' : 'Optways')}</h1>
           <div className="topbar-right">
             <span style={{ fontSize: '12px', color: 'var(--text-2)' }}>
               {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}

@@ -9,6 +9,7 @@ import LeavePage from './pages/LeavePage.jsx'
 import SalaryPage from './pages/SalaryPage.jsx'
 import TasksPage from './pages/TasksPage.jsx'
 import CustomersPage from './pages/CustomersPage.jsx'
+import CustomerDetailPage from './pages/CustomerDetailPage.jsx'
 import ReportsPage from './pages/ReportsPage.jsx'
 import UsersPage from './pages/UsersPage.jsx'
 
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="luong" element={<SalaryPage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="customers" element={<CustomersPage />} />
+        <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="reports" element={<ProtectedRoute allowedRoles={['admin','manager']}><ReportsPage /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute allowedRoles={['admin']}><UsersPage /></ProtectedRoute>} />
       </Route>
