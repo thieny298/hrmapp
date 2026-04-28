@@ -198,13 +198,19 @@ export default function LeavePage() {
     if (error) { setError(error.message); setSubmitting(false); return }
 
     // Gửi email thông báo cho manager/admin
-    try {
-      await supabase.functions.invoke('send-leave-email', {
-        body: { leave_id: inserted.id }
-      })
-    } catch (e) {
-      console.warn('Email notification failed:', e)
-    }
+try {
+  const { data: { session } } = await supabase.auth.getSession()
+  await fetch('https://sohwksictzmszufkrpas.supabase.co/functions/v1/send-leave-email', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token}`,
+    },
+    body: JSON.stringify({ leave_id: inserted.id }),
+  })
+} catch (e) {
+  console.warn('Email notification failed:', e)
+}
 
     fetchLeaves()
     setForm(EMPTY_FORM)
