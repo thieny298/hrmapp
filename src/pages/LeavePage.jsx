@@ -140,7 +140,11 @@ export default function LeavePage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [selectedLeave, setSelectedLeave] = useState(null)
-  const [leaveBalance] = useState({ total: 12, used: 3 })
+ const total = 12
+const used = leaves
+  .filter(l => l.status === 'approved')
+  .reduce((sum, l) => sum + (Number(l.days_count) || 0), 0)
+const leaveBalance = { total, used }
 
   const workdays = form.leave_type === 'full' ? countWorkdays(form.from_date, form.to_date) : 0.5
   const daysDisplay = form.leave_type === 'full' ? workdays : 0.5
