@@ -12,6 +12,7 @@ import CustomersPage from './pages/CustomersPage.jsx'
 import CustomerDetailPage from './pages/CustomerDetailPage.jsx'
 import ReportsPage from './pages/ReportsPage.jsx'
 import UsersPage from './pages/UsersPage.jsx'
+import LeaveApprovalPage from './pages/LeaveApprovalPage.jsx'
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, profile, loading } = useAuth()
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="reports" element={<ProtectedRoute allowedRoles={['admin','manager']}><ReportsPage /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute allowedRoles={['admin']}><UsersPage /></ProtectedRoute>} />
+        <Route path="duyet-nghi-phep" element={<ProtectedRoute allowedRoles={['admin','manager']}><LeaveApprovalPage /></ProtectedRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

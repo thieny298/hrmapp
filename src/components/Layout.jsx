@@ -12,6 +12,7 @@ const NAV = [
       { path: '/cham-cong', label: 'Chấm công', roles: ['admin','manager','employee'] },
       { path: '/nghi-phep', label: 'Nghỉ phép', roles: ['admin','manager','employee'] },
       { path: '/luong', label: 'Lương', roles: ['admin','manager','employee'] },
+      { path: '/duyet-nghi-phep', label: 'Duyệt nghỉ phép', roles: ['admin','manager'] },
     ]
   },
   { path: '/tasks', label: 'Công việc', icon: 'fa-light fa-list-check', roles: ['admin','manager','employee'] },
@@ -31,6 +32,7 @@ const PAGE_TITLES = {
   '/customers/:id': 'Chi tiết khách hàng',
   '/reports': 'Báo cáo & Thống kê',
   '/users': 'Quản lý người dùng',
+  '/duyet-nghi-phep': 'Duyệt nghỉ phép',
 }
 
 const ROLE_LABELS = { admin: 'Admin', manager: 'Manager', employee: 'Nhân viên' }

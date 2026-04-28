@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import DateInput from '../components/DateInput.jsx'
+import { useState, useEffect, useRef } from 'react'
+import DatePicker from '../components/DatePicker.jsx'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
 
@@ -7,37 +7,145 @@ const STATUS_BADGE = { pending:'badge-amber', approved:'badge-green', rejected:'
 const STATUS_LABEL = { pending:'Chờ duyệt', approved:'Đã duyệt', rejected:'Từ chối' }
 const LEAVE_TYPES = [['full','Nghỉ cả ngày'],['morning','Nghỉ nửa buổi sáng'],['afternoon','Nghỉ nửa buổi chiều']]
 
-function countWorkdays(from, to, holidays=[]) {
+function countWorkdays(from, to) {
   if (!from || !to) return 0
   let count = 0
   const d = new Date(from)
   const end = new Date(to)
   while (d <= end) {
     const day = d.getDay()
-    const dateStr = d.toISOString().slice(0,10)
-    if (day !== 0 && day !== 6 && !holidays.includes(dateStr)) count++
-    d.setDate(d.getDate()+1)
+    if (day !== 0 && day !== 6) count++
+    d.setDate(d.getDate() + 1)
   }
   return count
 }
 
 const EMPTY_FORM = { from_date:'', to_date:'', leave_type:'full', reason:'', handover_to:'', handover_email:'' }
 
+function AutocompleteInput({ value, onChange, members, placeholder }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState(value)
+  const ref = useRef(null)
+
+  useEffect(() => { setQuery(value) }, [value])
+
+  useEffect(() => {
+    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = query.length > 0
+    ? members.filter(m => m.full_name?.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
+    : []
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <input
+        className="form-input"
+        value={query}
+        placeholder={placeholder}
+        onChange={e => { setQuery(e.target.value); onChange(e.target.value, null); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        autoComplete="off"
+      />
+      {open && filtered.length > 0 && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+          background: 'var(--card)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          maxHeight: '200px', overflowY: 'auto', marginTop: '2px'
+        }}>
+          {filtered.map(m => (
+            <div
+              key={m.id}
+              style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '2px' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              onMouseDown={() => { onChange(m.full_name, m); setQuery(m.full_name); setOpen(false) }}
+            >
+              <span style={{ fontWeight: 500 }}>{m.full_name}</span>
+              <span style={{ color: 'var(--text-2)', fontSize: '12px' }}>{m.email}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LeaveDetailModal({ leave, onClose }) {
+  if (!leave) return null
+  const typeLabel = LEAVE_TYPES.find(t => t[0] === leave.leave_type)?.[1] || leave.leave_type
+  const fromStr = new Date(leave.from_date).toLocaleDateString('vi-VN')
+  const toStr = new Date(leave.to_date).toLocaleDateString('vi-VN')
+  const createdStr = new Date(leave.created_at).toLocaleString('vi-VN')
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+    }} onClick={onClose}>
+      <div style={{
+        background: 'var(--card)', borderRadius: '12px', width: '100%', maxWidth: '480px',
+        padding: '24px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div style={{ fontWeight: 600, fontSize: '15px' }}>Chi tiết đơn nghỉ phép</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--text-2)', padding: '0 4px' }}>
+            <i className="fa-light fa-xmark" />
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+          {[
+            ['Hình thức', typeLabel],
+            ['Số ngày nghỉ', (leave.days_count || '—') + ' ngày'],
+            ['Ngày bắt đầu', fromStr],
+            ['Ngày kết thúc', toStr],
+            ['Bàn giao cho', leave.handover_to || '—'],
+            ['Email bàn giao', leave.handover_email || '—'],
+          ].map(([k, v]) => (
+            <div key={k} style={{ padding: '10px 12px', background: 'var(--bg)', borderRadius: 'var(--radius)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: '3px' }}>{k}</div>
+              <div style={{ fontWeight: 500, fontSize: '13px', wordBreak: 'break-all' }}>{v}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ padding: '10px 12px', background: 'var(--bg)', borderRadius: 'var(--radius)', marginBottom: '10px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: '3px' }}>Lý do nghỉ</div>
+          <div style={{ fontWeight: 500, fontSize: '13px' }}>{leave.reason}</div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-2)' }}>
+            <i className="fa-light fa-clock" style={{ marginRight: '4px' }} />
+            Gửi lúc: {createdStr}
+          </div>
+          <span className={`badge ${STATUS_BADGE[leave.status]}`}>{STATUS_LABEL[leave.status]}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function LeavePage() {
   const { profile } = useAuth()
-  const [step, setStep] = useState(0) // 0=list, 1=form, 2=review
+  const [step, setStep] = useState(0)
   const [form, setForm] = useState(EMPTY_FORM)
   const [leaves, setLeaves] = useState([])
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [selectedLeave, setSelectedLeave] = useState(null)
   const [leaveBalance] = useState({ total: 12, used: 3 })
 
   const workdays = form.leave_type === 'full' ? countWorkdays(form.from_date, form.to_date) : 0.5
   const daysDisplay = form.leave_type === 'full' ? workdays : 0.5
 
-  useEffect(() => { fetchLeaves(); fetchMembers() }, [profile])
+  useEffect(() => { fetchLeaves(); fetchMembers() }, [profile?.id])
 
   async function fetchLeaves() {
     if (!profile?.id) return
@@ -52,9 +160,8 @@ export default function LeavePage() {
     setMembers(data || [])
   }
 
-  function handleMemberSelect(name) {
-    const m = members.find(x => x.full_name === name)
-    setForm(p => ({ ...p, handover_to: name, handover_email: m?.email || p.handover_email }))
+  function handleHandoverChange(name, member) {
+    setForm(p => ({ ...p, handover_to: name, handover_email: member?.email || p.handover_email }))
   }
 
   function validateForm() {
@@ -77,7 +184,7 @@ export default function LeavePage() {
 
   async function submit() {
     setSubmitting(true)
-    const { error } = await supabase.from('leave_requests').insert({
+    const { data: inserted, error } = await supabase.from('leave_requests').insert({
       user_id: profile.id,
       from_date: form.from_date,
       to_date: form.leave_type === 'full' ? form.to_date : form.from_date,
@@ -87,8 +194,18 @@ export default function LeavePage() {
       handover_to: form.handover_to,
       handover_email: form.handover_email,
       status: 'pending',
-    })
+    }).select().single()
     if (error) { setError(error.message); setSubmitting(false); return }
+
+    // Gửi email thông báo cho manager/admin
+    try {
+      await supabase.functions.invoke('send-leave-email', {
+        body: { leave_id: inserted.id }
+      })
+    } catch (e) {
+      console.warn('Email notification failed:', e)
+    }
+
     fetchLeaves()
     setForm(EMPTY_FORM)
     setStep(0)
@@ -99,7 +216,6 @@ export default function LeavePage() {
 
   return (
     <div>
-      {/* Balance cards */}
       <div className="stats-grid" style={{gridTemplateColumns:'repeat(3,minmax(0,1fr))',marginBottom:'1rem'}}>
         <div className="stat-card"><div className="stat-label">Phép năm</div><div className="stat-value">{leaveBalance.total}</div><div className="stat-sub">ngày/năm</div></div>
         <div className="stat-card"><div className="stat-label">Đã dùng</div><div className="stat-value">{leaveBalance.used}</div><div className="stat-sub">ngày</div></div>
@@ -122,7 +238,7 @@ export default function LeavePage() {
                   {leaves.length === 0
                     ? <tr><td colSpan="5"><div className="empty"><div className="empty-icon"><i className="fa-solid fa-umbrella-beach"/></div><div className="empty-text">Chưa có đơn nghỉ phép nào</div></div></td></tr>
                     : leaves.map(l=>(
-                      <tr key={l.id}>
+                      <tr key={l.id} style={{cursor:'pointer'}} onClick={()=>setSelectedLeave(l)}>
                         <td style={{fontWeight:500}}>{new Date(l.from_date).toLocaleDateString('vi-VN')}{l.to_date !== l.from_date && ' → '+new Date(l.to_date).toLocaleDateString('vi-VN')}</td>
                         <td style={{color:'var(--text-2)'}}>{LEAVE_TYPES.find(t=>t[0]===l.leave_type)?.[1]||l.leave_type}</td>
                         <td>{l.days_count} ngày</td>
@@ -140,7 +256,6 @@ export default function LeavePage() {
 
       {(step === 1 || step === 2) && (
         <div>
-          {/* Steps indicator */}
           <div className="steps" style={{marginBottom:'1.5rem'}}>
             <div className={`step${step>=1?' active':''}`}>
               <div className="step-circle"><i className="fa-solid fa-pen"/></div>
@@ -163,25 +278,25 @@ export default function LeavePage() {
               <div className="card-title" style={{marginBottom:'1.25rem'}}>Nhập thông tin nghỉ phép</div>
               {error && <div className="alert alert-error"><i className="fa-solid fa-circle-exclamation"/>{error}</div>}
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Hình thức nghỉ<span className="req">*</span></label>
-                  <select className="form-select" value={form.leave_type} onChange={e=>setForm(p=>({...p,leave_type:e.target.value}))}>
-                    {LEAVE_TYPES.map(([v,l])=><option key={v} value={v}>{l}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Ngày bắt đầu<span className="req">*</span></label>
-                  <DateInput value={form.from_date} onChange={v=>setForm(p=>({...p,from_date:v}))} />
-                </div>
+              <div className="form-group">
+                <label className="form-label">Hình thức nghỉ<span className="req">*</span></label>
+                <select className="form-select" value={form.leave_type} onChange={e=>setForm(p=>({...p,leave_type:e.target.value,to_date:''}))}>
+                  {LEAVE_TYPES.map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                </select>
               </div>
 
-              {form.leave_type === 'full' && (
+              <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Ngày kết thúc<span className="req">*</span></label>
-                  <DateInput value={form.to_date} onChange={v=>setForm(p=>({...p,to_date:v}))} />
+                  <label className="form-label">Ngày bắt đầu<span className="req">*</span></label>
+                  <DatePicker value={form.from_date} onChange={v=>setForm(p=>({...p,from_date:v}))} placeholder="DD/MM/YYYY" />
                 </div>
-              )}
+                {form.leave_type === 'full' && (
+                  <div className="form-group">
+                    <label className="form-label">Ngày kết thúc<span className="req">*</span></label>
+                    <DatePicker value={form.to_date} onChange={v=>setForm(p=>({...p,to_date:v}))} placeholder="DD/MM/YYYY" minDate={form.from_date} />
+                  </div>
+                )}
+              </div>
 
               {(form.from_date && (form.leave_type !== 'full' || form.to_date)) && (
                 <div style={{padding:'10px 14px',background:'var(--primary-bg)',borderRadius:'var(--radius)',marginBottom:'14px',fontSize:'13px',color:'var(--primary)',fontWeight:'500'}}>
@@ -198,12 +313,11 @@ export default function LeavePage() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Bàn giao công việc cho<span className="req">*</span></label>
-                  <input className="form-input" list="members-list" value={form.handover_to} onChange={e=>handleMemberSelect(e.target.value)} placeholder="Nhập tên..." />
-                  <datalist id="members-list">{members.map(m=><option key={m.id} value={m.full_name}/>)}</datalist>
+                  <AutocompleteInput value={form.handover_to} onChange={handleHandoverChange} members={members} placeholder="Nhập tên..." />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Email người nhận bàn giao<span className="req">*</span></label>
-                  <input className="form-input" type="email" value={form.handover_email} onChange={e=>setForm(p=>({...p,handover_email:e.target.value}))} />
+                  <input className="form-input" type="email" value={form.handover_email} onChange={e=>setForm(p=>({...p,handover_email:e.target.value}))} placeholder="Tự điền khi chọn tên" />
                 </div>
               </div>
 
@@ -249,6 +363,8 @@ export default function LeavePage() {
           )}
         </div>
       )}
+
+      <LeaveDetailModal leave={selectedLeave} onClose={()=>setSelectedLeave(null)} />
     </div>
   )
 }
