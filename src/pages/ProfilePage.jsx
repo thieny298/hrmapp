@@ -71,16 +71,19 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const canEdit = authProfile?.role === 'admin' || authProfile?.role === 'manager'
 
-  useEffect(() => { fetchProfile() }, [authProfile])
+useEffect(() => { fetchProfile() }, [authProfile?.id])  
 
-  async function fetchProfile() {
-    if (!authProfile?.id) return
-    setLoading(true)
-    const { data } = await supabase.from('employee_profiles').select('*').eq('user_id', authProfile.id).single()
-    if (data) setForm({ ...INIT_PROFILE, ...data, education_history: data.education_history||[], work_history: data.work_history||[] })
-    else setForm(p => ({ ...p, full_name: authProfile.full_name||'', email: authProfile.email||'' }))
-    setLoading(false)
+async function fetchProfile() {
+  if (!authProfile?.id) {
+    setLoading(false)  // ← fix infinite loading
+    return
   }
+  setLoading(true)
+  const { data } = await supabase.from('employee_profiles').select('*').eq('user_id', authProfile.id).single()
+  if (data) setForm({ ...INIT_PROFILE, ...data, education_history: data.education_history||[], work_history: data.work_history||[] })
+  else setForm(p => ({ ...p, full_name: authProfile.full_name||'', email: authProfile.email||'' }))
+  setLoading(false)
+}
 
 async function save() {
   setSaving(true); setError(''); setSuccess(false)
