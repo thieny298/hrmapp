@@ -9,13 +9,15 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   async function fetchProfile(userId) {
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    setProfile(data)
-  }
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single()
+  
+  console.log('fetchProfile:', data, error) // xem lỗi gì
+  setProfile(data)
+}
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
