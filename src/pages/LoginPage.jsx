@@ -20,12 +20,12 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--bg)', padding: '1rem'
+      background: 'var(--_gradient) #0e241a', padding: '1rem'
     }}>
       <div style={{ width: '100%', maxWidth: '380px' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px' }}>WorkFlow</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-2)' }}>Hệ thống quản trị doanh nghiệp</div>
+          <div style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px' }}>OTPWAYS HRM</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-2)' }}>Hệ thống quản trị Optways</div>
         </div>
 
         <div className="card" style={{ padding: '2rem' }}>

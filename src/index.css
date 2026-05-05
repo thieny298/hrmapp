@@ -2,10 +2,11 @@
 
 :root {
   --font: 'Public Sans', sans-serif;
-  --primary: #028858;
-  --primary-hover: #00a76f;
+  --primary: #0a4f3b;
+  --primary-hover: #0f6049;
   --primary-bg: rgba(22,47,44,0.08);
   --primary-light: rgba(22,47,44,0.04);
+  --_gradient: radial-gradient(at 17.9% 11.7%, #064521 0px, transparent 50%), radial-gradient(at 17.7% 84.3%, #001709 0px, transparent 50%), radial-gradient(at 91.4% 3.9%, #004d32 0px, transparent 50%), radial-gradient(at 98.6% 1.4%, #ab9a3e78 0px, transparent 50%), radial-gradient(at 94.1% 5.2%, #9aed9c 0px, transparent 50%);
   --accent: #b5895a;
   --bg: #f9f9f9;
   --surface: #ffffff;
@@ -20,7 +21,7 @@
   --blue: #185FA5; --blue-bg: #E6F1FB; --blue-text: #0C447C;
   --orange-light: #fff7ed;
   --gray-bg: #F1EFE8; --gray-text: #5F5E5A;
-  --radius: 6px; --radius-lg: 10px;
+  --radius: 5px; --radius-lg: 8px;
   --shadow: 0 1px 3px rgba(0,0,0,0.07);
   --sidebar-w: 240px; --sidebar-collapsed: 64px;
 }
@@ -151,10 +152,10 @@ tbody tr:hover td { background: var(--primary-light); }
 .form-group { margin-bottom: 14px; }
 .form-label { display: block; font-size: 13px; font-weight: 500; color: var(--text-2); margin-bottom: 5px; }
 .req { color: var(--red); margin-left: 2px; }
-.form-input, .form-select, .form-textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; font-family: var(--font); color: var(--text); background: var(--surface); outline: none; transition: border-color 0.12s, box-shadow 0.12s; height: 40px; }
+.form-input, .form-select, .form-textarea { width: 100%; padding: 10px 15px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 15px; font-family: var(--font); color: var(--text); background: var(--surface); outline: none; transition: border-color 0.12s, box-shadow 0.12s; min-height: 42px; }
 .form-textarea { height: auto; min-height: 80px; resize: vertical; }
 .form-input:hover, .form-select:hover { border-color: var(--border-strong); }
-.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(22,47,44,0.1); }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 .form-error { font-size: 11px; color: var(--red); margin-top: 4px; }
