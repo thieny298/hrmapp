@@ -7,17 +7,45 @@ const STATUS_BADGE = { pending:'badge-amber', approved:'badge-green', rejected:'
 const STATUS_LABEL = { pending:'Chờ duyệt', approved:'Đã duyệt', rejected:'Từ chối' }
 const LEAVE_TYPES = [['full','Nghỉ cả ngày'],['morning','Nghỉ nửa buổi sáng'],['afternoon','Nghỉ nửa buổi chiều']]
 
-function countWorkdays(from, to) {
+// Ngày lễ cố định (MM-DD), không tính năm
+const FIXED_HOLIDAYS = ['01-01','04-30','05-01','09-02','09-03','11-24']
+
+function isHoliday(date, publicHolidays) {
+  const mmdd = `${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`
+  if (FIXED_HOLIDAYS.includes(mmdd)) return true
+  const yyyy_mm_dd = `${date.getFullYear()}-${mmdd}`
+  return publicHolidays.includes(yyyy_mm_dd)
+}
+
+function countWorkdays(from, to, publicHolidays = []) {
   if (!from || !to) return 0
   let count = 0
-  const d = new Date(from)
-  const end = new Date(to)
+  const d = new Date(from + 'T00:00:00')
+  const end = new Date(to + 'T00:00:00')
   while (d <= end) {
     const day = d.getDay()
-    if (day !== 0 && day !== 6) count++
+    if (day !== 0 && day !== 6 && !isHoliday(d, publicHolidays)) count++
     d.setDate(d.getDate() + 1)
   }
   return count
+}
+
+// Tính số ngày phép dựa theo join_date (1 ngày/tháng, tối đa 12)
+function calcLeaveEntitlement(joinDateStr) {
+  if (!joinDateStr) return 12
+  const join = new Date(joinDateStr + 'T00:00:00')
+  const now = new Date()
+  // Số tháng từ join đến đầu tháng hiện tại
+  const months = (now.getFullYear() - join.getFullYear()) * 12 + (now.getMonth() - join.getMonth())
+  if (months >= 12) return 12
+  return Math.max(0, months)
+}
+
+// Min date = ngày mai
+function getTomorrow() {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().split('T')[0]
 }
 
 const EMPTY_FORM = { from_date:'', to_date:'', leave_type:'full', reason:'', handover_to:'', handover_email:'' }
@@ -136,20 +164,37 @@ export default function LeavePage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [leaves, setLeaves] = useState([])
   const [members, setMembers] = useState([])
+  const [publicHolidays, setPublicHolidays] = useState([]) // ['YYYY-MM-DD', ...]
+  const [employeeProfile, setEmployeeProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [selectedLeave, setSelectedLeave] = useState(null)
- const total = 12
-const used = leaves
-  .filter(l => l.status === 'approved')
-  .reduce((sum, l) => sum + (Number(l.days_count) || 0), 0)
-const leaveBalance = { total, used }
 
-  const workdays = form.leave_type === 'full' ? countWorkdays(form.from_date, form.to_date) : 0.5
-  const daysDisplay = form.leave_type === 'full' ? workdays : 0.5
+  const tomorrow = getTomorrow()
 
-  useEffect(() => { fetchLeaves(); fetchMembers() }, [profile?.id])
+  // Tính số ngày phép được hưởng
+  const totalLeave = calcLeaveEntitlement(employeeProfile?.join_date)
+
+  // Tính số ngày đã dùng (đơn approved)
+  const usedLeave = leaves
+    .filter(l => l.status === 'approved')
+    .reduce((sum, l) => sum + (Number(l.days_count) || 0), 0)
+
+  const remainLeave = totalLeave - usedLeave
+
+  // Tính days_count có trừ ngày lễ
+  const workdays = form.leave_type === 'full'
+    ? countWorkdays(form.from_date, form.to_date, publicHolidays)
+    : 0.5
+  const daysDisplay = workdays
+
+  useEffect(() => {
+    fetchLeaves()
+    fetchMembers()
+    fetchPublicHolidays()
+    fetchEmployeeProfile()
+  }, [profile?.id])
 
   async function fetchLeaves() {
     if (!profile?.id) return
@@ -164,6 +209,17 @@ const leaveBalance = { total, used }
     setMembers(data || [])
   }
 
+  async function fetchPublicHolidays() {
+    const { data } = await supabase.from('public_holidays').select('date')
+    setPublicHolidays((data || []).map(h => h.date))
+  }
+
+  async function fetchEmployeeProfile() {
+    if (!profile?.id) return
+    const { data } = await supabase.from('employee_profiles').select('join_date').eq('user_id', profile.id).single()
+    setEmployeeProfile(data)
+  }
+
   function handleHandoverChange(name, member) {
     setForm(p => ({ ...p, handover_to: name, handover_email: member?.email || p.handover_email }))
   }
@@ -175,7 +231,8 @@ const leaveBalance = { total, used }
     if (!form.reason.trim()) return 'Vui lòng nhập lý do nghỉ'
     if (!form.handover_to.trim()) return 'Vui lòng nhập người nhận bàn giao'
     if (!form.handover_email.trim()) return 'Vui lòng nhập email người nhận bàn giao'
-    if (daysDisplay <= 0) return 'Số ngày nghỉ không hợp lệ'
+    if (daysDisplay <= 0) return 'Khoảng thời gian chọn không có ngày làm việc hợp lệ (trùng ngày lễ hoặc cuối tuần)'
+    if (daysDisplay > remainLeave) return `Số ngày nghỉ vượt quá số phép còn lại (${remainLeave} ngày)`
     return null
   }
 
@@ -201,20 +258,19 @@ const leaveBalance = { total, used }
     }).select().single()
     if (error) { setError(error.message); setSubmitting(false); return }
 
-    // Gửi email thông báo cho manager/admin
-try {
-  const { data: { session } } = await supabase.auth.getSession()
-  await fetch('https://sohwksictzmszufkrpas.supabase.co/functions/v1/send-leave-email', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session?.access_token}`,
-    },
-    body: JSON.stringify({ leave_id: inserted.id }),
-  })
-} catch (e) {
-  console.warn('Email notification failed:', e)
-}
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      await fetch('https://sohwksictzmszufkrpas.supabase.co/functions/v1/send-leave-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ leave_id: inserted.id }),
+      })
+    } catch (e) {
+      console.warn('Email notification failed:', e)
+    }
 
     fetchLeaves()
     setForm(EMPTY_FORM)
@@ -226,20 +282,38 @@ try {
 
   return (
     <div>
+      {/* Stats */}
       <div className="stats-grid" style={{gridTemplateColumns:'repeat(3,minmax(0,1fr))',marginBottom:'1rem'}}>
-        <div className="stat-card"><div className="stat-label">Phép năm</div><div className="stat-value">{leaveBalance.total}</div><div className="stat-sub">ngày/năm</div></div>
-        <div className="stat-card"><div className="stat-label">Đã dùng</div><div className="stat-value">{leaveBalance.used}</div><div className="stat-sub">ngày</div></div>
-        <div className="stat-card"><div className="stat-label">Còn lại</div><div className="stat-value" style={{color:'var(--primary)'}}>{leaveBalance.total - leaveBalance.used}</div><div className="stat-sub">ngày</div></div>
+        <div className="stat-card">
+          <div className="stat-label">Phép năm</div>
+          <div className="stat-value">{totalLeave}</div>
+          <div className="stat-sub">ngày{totalLeave < 12 ? ' (đang tích lũy)' : '/năm'}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Đã dùng</div>
+          <div className="stat-value">{usedLeave}</div>
+          <div className="stat-sub">ngày</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Còn lại</div>
+          <div className="stat-value" style={{color: remainLeave <= 2 ? 'var(--danger)' : 'var(--primary)'}}>{remainLeave}</div>
+          <div className="stat-sub">ngày</div>
+        </div>
       </div>
 
       {step === 0 && (
         <div>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1rem'}}>
             <span style={{fontSize:'13px',color:'var(--text-2)'}}>{leaves.length} đơn nghỉ phép</span>
-            <button className="btn btn-primary" onClick={()=>{setStep(1);setError('')}}>
+            <button className="btn btn-primary" onClick={()=>{setStep(1);setError('')}} disabled={remainLeave <= 0}>
               <i className="fa-solid fa-plus"/>Tạo đơn nghỉ
             </button>
           </div>
+          {remainLeave <= 0 && (
+            <div className="alert alert-error" style={{marginBottom:'1rem'}}>
+              <i className="fa-solid fa-circle-exclamation"/> Bạn đã hết ngày phép năm nay.
+            </div>
+          )}
           <div className="card" style={{padding:0}}>
             <div className="table-wrap">
               <table>
@@ -298,20 +372,33 @@ try {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Ngày bắt đầu<span className="req">*</span></label>
-                  <DatePicker value={form.from_date} onChange={v=>setForm(p=>({...p,from_date:v}))} placeholder="DD/MM/YYYY" />
+                  <DatePicker
+                    value={form.from_date}
+                    onChange={v=>setForm(p=>({...p,from_date:v,to_date:''}))}
+                    placeholder="DD/MM/YYYY"
+                    minDate={tomorrow}
+                  />
                 </div>
                 {form.leave_type === 'full' && (
                   <div className="form-group">
                     <label className="form-label">Ngày kết thúc<span className="req">*</span></label>
-                    <DatePicker value={form.to_date} onChange={v=>setForm(p=>({...p,to_date:v}))} placeholder="DD/MM/YYYY" minDate={form.from_date} />
+                    <DatePicker
+                      value={form.to_date}
+                      onChange={v=>setForm(p=>({...p,to_date:v}))}
+                      placeholder="DD/MM/YYYY"
+                      minDate={form.from_date || tomorrow}
+                    />
                   </div>
                 )}
               </div>
 
               {(form.from_date && (form.leave_type !== 'full' || form.to_date)) && (
-                <div style={{padding:'10px 14px',background:'var(--primary-bg)',borderRadius:'var(--radius)',marginBottom:'14px',fontSize:'13px',color:'var(--primary)',fontWeight:'500'}}>
-                  <i className="fa-solid fa-calendar-check" style={{marginRight:'6px'}}/>
-                  Số ngày nghỉ: <strong>{daysDisplay} ngày</strong>
+                <div style={{padding:'10px 14px',background: daysDisplay > 0 ? 'var(--primary-bg)' : '#fef3c7',borderRadius:'var(--radius)',marginBottom:'14px',fontSize:'13px',color: daysDisplay > 0 ? 'var(--primary)' : '#92400e',fontWeight:'500'}}>
+                  <i className={`fa-solid ${daysDisplay > 0 ? 'fa-calendar-check' : 'fa-triangle-exclamation'}`} style={{marginRight:'6px'}}/>
+                  {daysDisplay > 0
+                    ? <>Số ngày nghỉ: <strong>{daysDisplay} ngày</strong> (đã trừ ngày lễ & cuối tuần)</>
+                    : 'Khoảng thời gian này không có ngày làm việc (trùng lễ/cuối tuần)'
+                  }
                 </div>
               )}
 
