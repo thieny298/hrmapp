@@ -20,25 +20,28 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--_gradient) #0e241a', padding: '1rem'
+     background: 'var(--_gradient), url(/bg-ultility-1.jpg)  #0e241a', padding: '1rem'
     }}>
-      <div style={{ width: '100%', maxWidth: '380px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px' }}>OTPWAYS HRM</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-2)' }}>Hệ thống quản trị Optways</div>
+      <div style={{ width: '100%', maxWidth: '510px' } }>
+        <div style={{ textAlign: 'center', marginBottom: '2rem',color: 'var(--white)' }}>
+          <div style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px' }}>
+            <img src="/Optways-Logo--white.svg" alt="Optways Logo" style={{ width: '300px', height: 'auto', verticalAlign: 'middle' }} />
+          </div>
+          <div style={{ fontSize: '17px' , color: '#f9f9f9' }}>HỆ THỐNG QUẢN TRỊ</div>
         </div>
 
-        <div className="card" style={{ padding: '2rem' }}>
-          <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '1.5rem' }}>Đăng nhập</div>
+        <div className="card" style={{ padding: '25px 45px 45px' , border:'none',background: 'var(--surface)' }}>
+          <div style={{ fontSize: '23px', fontWeight: '500', marginBottom: '1.5rem' }}>Đăng nhập</div>
 
           {error && <div className="alert alert-error">{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="form-label">Email</label>
+              <label for="email" className="form-label">Email</label>
               <input
                 className="form-input"
                 type="email"
+                id="email"
                 placeholder="email@congty.vn"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
@@ -51,6 +54,7 @@ export default function LoginPage() {
               <input
                 className="form-input"
                 type="password"
+                id="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
