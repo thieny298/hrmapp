@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import Modal from '../components/Modal.jsx'
@@ -13,6 +14,7 @@ const EMPTY_FORM = { full_name: '', department: DEPTS[0], position: '', status: 
 
 export default function EmployeesPage() {
   const { profile } = useAuth()
+  const navigate = useNavigate()
   const [employees, setEmployees] = useState([])
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState(null)
@@ -37,26 +39,23 @@ export default function EmployeesPage() {
     e.position?.toLowerCase().includes(search.toLowerCase())
   )
 
-  function openAdd() { setForm(EMPTY_FORM); setError(''); setModal('add') }
   function openEdit(e) { setForm({ ...e }); setError(''); setModal('edit') }
 
   async function save() {
     if (!form.full_name?.trim()) { setError('Vui lòng nhập họ tên'); return }
     setSaving(true); setError('')
-const payload = { 
-  full_name: form.full_name, 
-  department: form.department, 
-  position: form.position, 
-  status: form.status, 
-  email: form.email, 
-  phone: form.phone, 
-  join_date: form.join_date || null, 
-  dob: form.dob || null,  
-  notes: form.notes 
-}
-    const { error } = modal === 'add'
-      ? await supabase.from('employee_profiles').insert(payload)
-      : await supabase.from('employee_profiles').update(payload).eq('id', form.id)
+    const payload = {
+      full_name: form.full_name,
+      department: form.department,
+      position: form.position,
+      status: form.status,
+      email: form.email,
+      phone: form.phone,
+      join_date: form.join_date || null,
+      dob: form.dob || null,
+      notes: form.notes
+    }
+    const { error } = await supabase.from('employee_profiles').update(payload).eq('id', form.id)
     if (error) setError(error.message)
     else { fetchEmployees(); setModal(null) }
     setSaving(false)
@@ -90,7 +89,7 @@ const payload = {
         <div className="search-wrap">
           <input className="search-input" placeholder="Tìm kiếm nhân viên..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        {canEdit && <button className="btn btn-primary" onClick={openAdd}>+ Thêm nhân viên</button>}
+        {canEdit && <button className="btn btn-primary" onClick={() => navigate('/nhan-vien/them-moi')}>+ Thêm nhân viên</button>}
       </div>
 
       <div className="card" style={{ padding: 0 }}>
@@ -121,6 +120,7 @@ const payload = {
                     {canEdit && (
                       <td>
                         <div style={{ display: 'flex', gap: '2px' }}>
+                          <button className="icon-btn" onClick={() => navigate(`/nhan-vien/${e.id}`)} title="Xem hồ sơ"><i className="fa-light fa-eye" /></button>
                           <button className="icon-btn" onClick={() => openEdit(e)} title="Sửa">✎</button>
                           {profile?.role === 'admin' && <button className="icon-btn" style={{ color: 'var(--red)' }} onClick={() => del(e.id)} title="Xoá">✕</button>}
                         </div>
@@ -136,7 +136,7 @@ const payload = {
 
       {modal && (
         <Modal
-          title={modal === 'add' ? 'Thêm nhân viên mới' : 'Chỉnh sửa nhân viên'}
+          title="Chỉnh sửa nhân viên"
           onClose={() => setModal(null)}
           footer={[
             <button key="c" className="btn" onClick={() => setModal(null)}>Huỷ</button>,

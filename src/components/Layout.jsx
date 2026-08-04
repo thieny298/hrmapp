@@ -9,6 +9,8 @@ const NAV = [
     roles: ['admin','manager','employee'],
     children: [
       { path: '/ho-so', label: 'Hồ sơ', roles: ['admin','manager','employee'] },
+      { path: '/nhan-vien', label: 'Danh sách nhân viên', roles: ['admin'] },
+      { path: '/nhan-vien/them-moi', label: 'Thêm nhân sự', roles: ['admin'] },
       { path: '/cham-cong', label: 'Chấm công', roles: ['admin','manager','employee'] },
       { path: '/nghi-phep', label: 'Nghỉ phép', roles: ['admin','manager','employee'] },
       { path: '/luong', label: 'Lương', roles: ['admin','manager','employee'] },
@@ -24,6 +26,8 @@ const NAV = [
 const PAGE_TITLES = {
   '/': 'Dashboard',
   '/ho-so': 'Hồ sơ nhân viên',
+  '/nhan-vien': 'Danh sách nhân viên',
+  '/nhan-vien/them-moi': 'Thêm nhân sự',
   '/cham-cong': 'Chấm công',
   '/nghi-phep': 'Nghỉ phép',
   '/luong': 'Bảng lương',
@@ -63,9 +67,10 @@ const [openGroups, setOpenGroups] = useState({})
         <div className="sidebar-header">
           <div className="sidebar-logo">
           <img src="/Optways-Logo.svg" className="logo-text" alt="Optways" />
+           <img src="/public/Optways-Logo-icon.png" className="logo-text-toggle" alt="Optways" />
           </div>
           <button className="sidebar-toggle" onClick={() => setCollapsed(p => !p)} title={collapsed ? 'Mở rộng' : 'Thu gọn'}>
-            <i className={`fa-light ${collapsed ? 'fa-angles-right' : 'fa-angles-left'}`} />
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="18" height="18"><path _ngcontent-ng-c2138935329="" d="M49.984,56l-35.989,0c-3.309,0 -5.995,-2.686 -5.995,-5.995l0,-36.011c0,-3.308 2.686,-5.995 5.995,-5.995l35.989,0c3.309,0 5.995,2.687 5.995,5.995l0,36.011c0,3.309 -2.686,5.995 -5.995,5.995Zm-25.984,-4.001l0,-39.999l-9.012,0c-1.65,0 -2.989,1.339 -2.989,2.989l0,34.021c0,1.65 1.339,2.989 2.989,2.989l9.012,0Zm24.991,-39.999l-20.991,0l0,39.999l20.991,0c1.65,0 2.989,-1.339 2.989,-2.989l0,-34.021c0,-1.65 -1.339,-2.989 -2.989,-2.989Z" fill="currentColor"></path></svg>
           </button>
         </div>
 
@@ -144,7 +149,9 @@ const [openGroups, setOpenGroups] = useState({})
           </div>
         </header>
         <div className="content">
+          <div className="content-inner">
           <Outlet />
+          </div>
         </div>
       </div>
     </div>
