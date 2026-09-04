@@ -2,23 +2,20 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DateInput from '../components/DateInput.jsx'
 import { supabase } from '../lib/supabase'
+import { nextEmployeeCodes } from '../lib/employeeCode'
 
 const INIT_FORM = {
-  // Cá nhân
   full_name: '', email: '', phone: '', gender: '', dob: '', marital_status: '',
   hometown: '', ethnicity: '', religion: '', education_level: '',
   id_number: '', id_issued_date: '', id_issued_place: '',
   permanent_address: '', current_address: '',
-  // Tổ chức
   employee_code: '', department: '', position: '', manager_id: '',
-  // Hợp đồng
   contract_type: 'full_time', status: 'probation', join_date: '',
   probation_end_date: '', contract_end_date: '', basic_salary: 0, salary_type: 'monthly',
-  // Ngân hàng & Thuế
   bank_owner: '', bank_account: '', bank_name: '', bank_branch: '',
   tax_code: '', insurance_code: '', insurance_place: '',
-  // Liên hệ khẩn cấp
   emergency_name: '', emergency_phone: '', emergency_relation: '', emergency_address: '',
+  major: '', school: '', graduation_year: '',
 }
 
 const GENDERS = [['', '— Chọn —'], ['male', 'Nam'], ['female', 'Nữ'], ['other', 'Khác']]
@@ -42,6 +39,7 @@ const TABS = [
   { key: 'organization', label: 'Tổ chức', icon: 'fa-building' },
   { key: 'contract', label: 'Hợp đồng', icon: 'fa-file-contract' },
   { key: 'bank', label: 'Ngân hàng & Thuế', icon: 'fa-credit-card' },
+  { key: 'training', label: 'Đào tạo & Văn bằng', icon: 'fa-graduation-cap' },
   { key: 'emergency', label: 'Liên hệ khẩn', icon: 'fa-phone-flip' },
 ]
 
@@ -80,22 +78,10 @@ export default function EmployeeCreatePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => { fetchManagers(); generateEmployeeCode().then(code => setForm(p => ({ ...p, employee_code: code }))) }, [])
-
-  async function generateEmployeeCode() {
-    const { data } = await supabase
-      .from('employee_profiles')
-      .select('employee_code')
-      .like('employee_code', 'OWS-%')
-    const maxSeq = (data || []).reduce((max, row) => {
-      const match = /^OWS-\d{2}(\d{3})$/.exec(row.employee_code || '')
-      const seq = match ? parseInt(match[1], 10) : 0
-      return seq > max ? seq : max
-    }, 0)
-    const yy = String(new Date().getFullYear()).slice(-2)
-    return `OWS-${yy}${String(maxSeq + 1).padStart(3, '0')}`
-  }
-
+  useEffect(() => {
+    fetchManagers()
+    nextEmployeeCodes(1).then(([code]) => setForm(p => ({ ...p, employee_code: code })))
+  }, [])
 
   async function fetchManagers() {
     const { data } = await supabase.from('employee_profiles').select('id, full_name').order('full_name')
@@ -121,13 +107,14 @@ export default function EmployeeCreatePage() {
 
     setSaving(true); setError('')
 
-    const freshCode = await generateEmployeeCode()
+    const [freshCode] = await nextEmployeeCodes(1)
 
     const DATE_FIELDS = ['dob', 'id_issued_date', 'join_date', 'probation_end_date', 'contract_end_date']
     const payload = { ...form, employee_code: freshCode }
     DATE_FIELDS.forEach(f => { if (!payload[f]) payload[f] = null })
     if (!payload.manager_id) payload.manager_id = null
     payload.basic_salary = Number(payload.basic_salary) || 0
+    payload.graduation_year = payload.graduation_year ? Number(payload.graduation_year) : null
 
     const { error } = await supabase.from('employee_profiles').insert(payload)
     setSaving(false)
@@ -172,7 +159,6 @@ export default function EmployeeCreatePage() {
         ))}
       </div>
 
-      {/* Tab: Cá nhân */}
       {activeTab === 'personal' && (
         <>
           <div className="card">
@@ -216,7 +202,6 @@ export default function EmployeeCreatePage() {
         </>
       )}
 
-      {/* Tab: Tổ chức */}
       {activeTab === 'organization' && (
         <div className="card">
           <div className="section-title">Thông tin tổ chức</div>
@@ -235,7 +220,6 @@ export default function EmployeeCreatePage() {
         </div>
       )}
 
-      {/* Tab: Hợp đồng */}
       {activeTab === 'contract' && (
         <>
           <div className="card">
@@ -262,7 +246,6 @@ export default function EmployeeCreatePage() {
         </>
       )}
 
-      {/* Tab: Ngân hàng & Thuế */}
       {activeTab === 'bank' && (
         <>
           <div className="card">
@@ -288,7 +271,17 @@ export default function EmployeeCreatePage() {
         </>
       )}
 
-      {/* Tab: Liên hệ khẩn cấp */}
+      {activeTab === 'training' && (
+        <div className="card">
+          <div className="section-title">Đào tạo & Văn bằng</div>
+          <div className="form-row">
+            <Field label="Chuyên ngành" k="major" form={form} setForm={setForm} />
+            <Field label="Trường" k="school" form={form} setForm={setForm} />
+          </div>
+          <Field label="Năm tốt nghiệp" k="graduation_year" type="number" form={form} setForm={setForm} />
+        </div>
+      )}
+
       {activeTab === 'emergency' && (
         <div className="card">
           <div className="section-title">Người liên hệ khẩn cấp</div>

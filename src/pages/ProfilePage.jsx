@@ -224,7 +224,7 @@ export default function ProfilePage() {
         <div className="personal-layout">
           <div className="personal-main">
             <div className="card">
-              <div className="section-title">Thông tin</div>
+              <div className="section-title-plain">Thông tin</div>
 
               {!isEditing('personal') ? (
                 <div className="form-grid">
@@ -255,7 +255,7 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              <div className="section-title" style={{ marginTop: '1.5rem' }}>Thông tin CMND/CCCD/Hộ chiếu</div>
+              <div className="section-title-plain" style={{ marginTop: '1.5rem' }}>Thông tin CMND/CCCD/Hộ chiếu</div>
 
               {!isEditing('personal') ? (
                 <div className="form-grid">
@@ -279,7 +279,7 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              <div className="section-title" style={{ marginTop: '1.5rem' }}>Liên hệ khẩn cấp</div>
+              <div className="section-title-plain" style={{ marginTop: '1.5rem' }}>Liên hệ khẩn cấp</div>
 
               {!isEditing('personal') ? (
                 <div className="form-grid">
@@ -322,7 +322,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div className="profile-tags" style={{ marginTop: '10px' }}>
-                {form.employee_code && <span className="tag tag-code">Mã số NV: {form.employee_code}</span>}
+                {form.employee_code && <span className="tag tag-plain">Mã số NV: {form.employee_code}</span>}
                 <span className="tag tag-approved">{statusLabel(form.status)}</span>
               </div>
 
@@ -346,7 +346,7 @@ export default function ProfilePage() {
       {/* Tab: Chức danh */}
       {activeTab === 'position' && (
         <div className="card">
-          <div className="section-title">Thông tin chức danh</div>
+          <div className="section-title-plain">Thông tin chức danh</div>
 
           {!isEditing('position') ? (
             <div className="form-grid">
@@ -386,7 +386,7 @@ export default function ProfilePage() {
       {/* Tab: Lương & Bảo hiểm */}
       {activeTab === 'salary' && (
         <div className="card">
-          <div className="section-title">Lương & Bảo hiểm</div>
+          <div className="section-title-plain">Lương & Bảo hiểm</div>
 
           {!isEditing('salary') ? (
             <div className="form-grid">

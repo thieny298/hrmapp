@@ -35,7 +35,8 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="ho-so" element={<ProfilePage />} />
         <Route path="cham-cong" element={<AttendancePage />} />
-        <Route path="nghi-phep" element={<LeavePage />} />
+        <Route path="nghi-phep" element={<LeavePage initialStep={1} />} />
+        <Route path="don-cua-toi" element={<LeavePage initialStep={0} />} />
         <Route path="luong" element={<SalaryPage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="customers" element={<CustomersPage />} />

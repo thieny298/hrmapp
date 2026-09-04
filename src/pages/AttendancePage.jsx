@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 const DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
 const MONTHS = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12']
@@ -93,6 +94,8 @@ export default function AttendancePage() {
 
   return (
     <div>
+      <PageHeader title="Chấm công" subtitle="Theo dõi giờ vào làm và lịch sử chấm công" />
+
       {/* Late popup */}
       {latePopup && (
         <div className="modal-overlay" onClick={() => setLatePopup(null)}>

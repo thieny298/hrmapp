@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import DatePicker from '../components/DatePicker.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
 
@@ -276,9 +278,10 @@ function LeaveDetailModal({ leave, onClose }) {
   )
 }
 
-export default function LeavePage() {
+export default function LeavePage({ initialStep = 0 }) {
   const { profile } = useAuth()
-  const [step, setStep] = useState(0) // 0: danh sách, 1: điền đơn, 2: xem lại, 3: hoàn thành
+  const navigate = useNavigate()
+  const [step, setStep] = useState(initialStep) // 0: danh sách, 1: điền đơn, 2: xem lại, 3: hoàn thành
   const [form, setForm] = useState(EMPTY_FORM)
   const [days, setDays] = useState([])
   const [showDayModal, setShowDayModal] = useState(false)
@@ -429,6 +432,16 @@ export default function LeavePage() {
 
   return (
     <div>
+      <PageHeader
+        title={initialStep === 1 ? 'Nghỉ phép' : 'Đơn của tôi'}
+        subtitle={initialStep === 1 ? 'Gửi đơn nghỉ phép' : 'Danh sách đơn nghỉ phép đã gửi'}
+        action={
+          <button className="btn btn-primary" onClick={() => navigate(initialStep === 1 ? '/don-cua-toi' : '/nghi-phep')}>
+            <i className="fa-light fa-file-lines" /> {initialStep === 1 ? 'Đơn của tôi' : 'Nghỉ phép'}
+          </button>
+        }
+      />
+
       {/* Stats */}
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))', marginBottom: '1rem' }}>
         <div className="stat-card">
@@ -486,18 +499,18 @@ export default function LeavePage() {
 
       {(step === 1 || step === 2 || step === 3) && (
         <div>
-          <div className="steps" style={{ marginBottom: '1.5rem' }}>
-            <div className={`step${step >= 1 ? ' active' : ''}`}>
+          <div className="steps">
+            <div className={`step${step > 1 ? ' done' : step === 1 ? ' active' : ''}`}>
               <div className="step-circle">1</div>
               <span className="step-label">ĐIỀN ĐƠN</span>
             </div>
-            <div className="step-line" />
-            <div className={`step${step >= 2 ? ' active' : ''}`}>
+            <div className={`step-line${step > 1 ? ' done' : ''}`} />
+            <div className={`step${step > 2 ? ' done' : step === 2 ? ' active' : ''}`}>
               <div className="step-circle">2</div>
               <span className="step-label">XEM LẠI</span>
             </div>
-            <div className="step-line" />
-            <div className={`step${step >= 3 ? ' active' : ''}`}>
+            <div className={`step-line${step > 2 ? ' done' : ''}`} />
+            <div className={`step${step > 3 ? ' done' : step === 3 ? ' active' : ''}`}>
               <div className="step-circle">3</div>
               <span className="step-label">HOÀN THÀNH</span>
             </div>
@@ -510,33 +523,33 @@ export default function LeavePage() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Họ tên</label>
-                  <div style={{ padding: '9px 12px', background: 'var(--bg)', borderRadius: 'var(--radius)', fontSize: '15px', fontWeight: 500 }}>{profile?.full_name}</div>
+                  <div className="field-display">{profile?.full_name}</div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Chức vụ, chức danh</label>
-                  <div style={{ padding: '9px 12px', background: 'var(--bg)', borderRadius: 'var(--radius)', fontSize: '15px', fontWeight: 500 }}>{employeeProfile?.position || '—'}</div>
+                  <div className="field-display">{employeeProfile?.position || '—'}</div>
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Đơn vị công tác</label>
-                  <div style={{ padding: '9px 12px', background: 'var(--bg)', borderRadius: 'var(--radius)', fontSize: '15px', fontWeight: 500 }}>{employeeProfile?.department || '—'}</div>
+                  <div className="field-display">{employeeProfile?.department || '—'}</div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Ngày bắt đầu làm việc</label>
-                  <div style={{ padding: '9px 12px', background: 'var(--bg)', borderRadius: 'var(--radius)', fontSize: '15px', fontWeight: 500 }}>{employeeProfile?.join_date ? new Date(employeeProfile.join_date).toLocaleDateString('vi-VN') : '—'}</div>
+                  <div className="field-display">{employeeProfile?.join_date ? new Date(employeeProfile.join_date).toLocaleDateString('vi-VN') : '—'}</div>
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Số ngày phép được nghỉ theo quy định</label>
-                  <div style={{ padding: '9px 12px', background: 'var(--bg)', borderRadius: 'var(--radius)', fontSize: '15px', fontWeight: 500 }}>{totalLeave}</div>
+                  <div className="field-display">{totalLeave}</div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Số ngày phép đã sử dụng trong năm hiện tại</label>
-                  <div style={{ padding: '9px 12px', background: 'var(--bg)', borderRadius: 'var(--radius)', fontSize: '15px', fontWeight: 500 }}>{usedLeave}</div>
+                  <div className="field-display">{usedLeave}</div>
                 </div>
               </div>
 
@@ -582,7 +595,7 @@ export default function LeavePage() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Số ngày nghỉ lần này</label>
-                  <div style={{ padding: '9px 12px', background: isOverLimit ? 'var(--red-bg)' : 'var(--bg)', borderRadius: 'var(--radius)', fontSize: '13px', fontWeight: 500, border: isOverLimit ? '1px solid var(--red)' : undefined }}>{totalRequestedDays}</div>
+                  <div className={`field-display${isOverLimit ? ' error' : ''}`}>{totalRequestedDays}</div>
                   {form.from_date && form.to_date && days.length === 0 && (
                     <div style={fieldErrorStyle}>Khoảng thời gian này không có ngày làm việc (trùng lễ/cuối tuần)</div>
                   )}
@@ -629,48 +642,69 @@ export default function LeavePage() {
           )}
 
           {step === 2 && (
-            <div className="card">
-              <div className="card-title" style={{ marginBottom: '1.25rem' }}>Xem lại đơn nghỉ phép</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1rem' }}>
-                {[
-                  ['Họ tên', profile?.full_name],
-                  ['Đơn vị công tác', employeeProfile?.department || '—'],
-                  ['Từ ngày - Đến ngày', `${new Date(form.from_date).toLocaleDateString('vi-VN')} → ${new Date(form.to_date).toLocaleDateString('vi-VN')}`],
-                  ['Số ngày nghỉ lần này', totalRequestedDays + ' ngày'],
-                  ['Bàn giao cho', form.handover_to],
-                  ['Email thông báo', form.handover_email || '—'],
-                ].map(([k, v]) => (
-                  <div key={k} style={{ padding: '12px', background: 'var(--bg)', borderRadius: 'var(--radius)' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: '3px' }}>{k}</div>
-                    <div style={{ fontWeight: '500', fontSize: '13px' }}>{v}</div>
+            <div className="card ">
+              <div className="card-narrow">
+                <div className="review-block">
+                <div className="review-title">Thông tin nhân viên</div>
+                <div className="review-grid">
+                  <div>
+                    <div className="review-field-label">Họ tên</div>
+                    <div className="review-field-value">{profile?.full_name}</div>
                   </div>
-                ))}
-              </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: '6px' }}>Chi tiết ngày nghỉ</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {dayGroups.map((g, i) => (
-                    <div key={i} style={{ padding: '8px 12px', background: 'var(--bg)', borderRadius: 'var(--radius)', fontSize: '12px' }}>
-                      <div style={{ fontWeight: 600 }}>{g.label}</div>
-                      <div style={{ color: 'var(--text-2)' }}>{g.type}</div>
-                    </div>
-                  ))}
+                  <div>
+                    <div className="review-field-label">Chức vụ, chức danh</div>
+                    <div className="review-field-value">{employeeProfile?.position || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="review-field-label">Đơn vị công tác</div>
+                    <div className="review-field-value">{employeeProfile?.department || '—'}</div>
+                  </div>
                 </div>
               </div>
 
-              <div style={{ padding: '12px', background: 'var(--bg)', borderRadius: 'var(--radius)', marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: '3px' }}>Lý do nghỉ</div>
-                <div style={{ fontWeight: '500', fontSize: '13px' }}>{form.reason}</div>
+              <div className="review-block">
+                <div className="review-title">Nội dung nghỉ phép</div>
+                <div className="review-grid" style={{ marginBottom: '1rem' }}>
+                  <div>
+                    <div className="review-field-label">Từ ngày - Đến ngày</div>
+                    <div className="review-field-value">{new Date(form.from_date).toLocaleDateString('vi-VN')} → {new Date(form.to_date).toLocaleDateString('vi-VN')}</div>
+                  </div>
+                  <div>
+                    <div className="review-field-label">Số ngày nghỉ lần này</div>
+                    <div className="review-field-value">{totalRequestedDays} ngày</div>
+                  </div>
+                </div>
+
+                <div className="review-field-label" style={{ marginBottom: '6px' }}>Chi tiết ngày nghỉ</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '1rem' }}>
+                  {dayGroups.map((g, i) => (
+                    <div key={i} className="review-day-row">
+                      <span>{g.label}</span>
+                      <span className="review-day-type">{g.type}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="review-grid">
+                  <div>
+                    <div className="review-field-label">Lý do nghỉ</div>
+                    <div className="review-field-value">{form.reason}</div>
+                  </div>
+                  <div>
+                    <div className="review-field-label">Bàn giao công việc cho</div>
+                    <div className="review-field-value">{form.handover_to}</div>
+                  </div>
+                </div>
               </div>
 
-              {error && <div className="alert alert-error">{error}</div>}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button className="btn" onClick={() => setStep(1)}><i className="fa-solid fa-arrow-left" />Quay lại</button>
+              {error && <div className="alert alert-error" style={{ marginTop: '1rem' }}>{error}</div>}
+              <div className="review-actions">
+                <button className="btn" onClick={() => setStep(1)}>Quay lại</button>
                 <button className="btn btn-primary" onClick={submit} disabled={submitting}>
                   <i className="fa-solid fa-paper-plane" />
                   {submitting ? 'Đang gửi...' : 'Gửi đơn'}
                 </button>
+              </div>
               </div>
             </div>
           )}

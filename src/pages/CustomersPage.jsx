@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import Modal from '../components/Modal.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 const STATUS = { active: 'Đang hợp tác', prospect: 'Tiềm năng', inactive: 'Ngừng hợp tác' }
 const STATUS_BADGE = { active: 'badge-green', prospect: 'badge-blue', inactive: 'badge-gray' }
@@ -97,6 +98,8 @@ export default function CustomersPage() {
 
   return (
     <div>
+      <PageHeader title="Khách hàng" subtitle="Quản lý danh sách khách hàng và đối tác" />
+
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' }}>
         <div className="search-wrap" style={{ flex: 1, minWidth: 200 }}>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import Modal from '../components/Modal.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 const COLS = ['todo', 'doing', 'review', 'done']
 const TASK_STATUS = { todo: 'Cần làm', doing: 'Đang làm', review: 'Chờ duyệt', done: 'Hoàn thành' }
@@ -95,6 +96,8 @@ export default function TasksPage() {
 
   return (
     <div>
+      <PageHeader title="Công việc" subtitle="Quản lý và theo dõi tiến độ công việc" />
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <div style={{ fontSize: '13px', color: 'var(--text-2)' }}>{tasks.length} task tổng cộng</div>
         {canEdit && <button className="btn btn-primary" onClick={() => openAdd()}>+ Thêm task</button>}

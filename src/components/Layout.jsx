@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 
@@ -11,9 +11,16 @@ const NAV = [
       { path: '/ho-so', label: 'Hồ sơ', roles: ['admin','manager','employee'] },
       { path: '/nhan-vien', label: 'Danh sách nhân viên', roles: ['admin'] },
       { path: '/nhan-vien/them-moi', label: 'Thêm nhân sự', roles: ['admin'] },
+      { path: '/luong', label: 'Lương', roles: ['admin','manager','employee'] },
+    ]
+  },
+  {
+    id: 'thoigian', label: 'Thời gian', icon: 'fa-light fa-clock',
+    roles: ['admin','manager','employee'],
+    children: [
       { path: '/cham-cong', label: 'Chấm công', roles: ['admin','manager','employee'] },
       { path: '/nghi-phep', label: 'Nghỉ phép', roles: ['admin','manager','employee'] },
-      { path: '/luong', label: 'Lương', roles: ['admin','manager','employee'] },
+      { path: '/don-cua-toi', label: 'Đơn của tôi', roles: ['admin','manager','employee'] },
       { path: '/duyet-nghi-phep', label: 'Duyệt nghỉ phép', roles: ['admin','manager'] },
     ]
   },
@@ -30,6 +37,7 @@ const PAGE_TITLES = {
   '/nhan-vien/them-moi': 'Thêm nhân sự',
   '/cham-cong': 'Chấm công',
   '/nghi-phep': 'Nghỉ phép',
+  '/don-cua-toi': 'Đơn của tôi',
   '/luong': 'Bảng lương',
   '/tasks': 'Công việc',
   '/customers': 'Khách hàng',
@@ -41,6 +49,19 @@ const PAGE_TITLES = {
 
 const ROLE_LABELS = { admin: 'Admin', manager: 'Manager', employee: 'Nhân viên' }
 
+function getBreadcrumb(pathname) {
+  for (const item of NAV) {
+    if (item.children) {
+      const child = item.children.find(c => c.path === pathname)
+      if (child) return [item.label, child.label]
+    } else if (item.path === pathname) {
+      return [item.label]
+    }
+  }
+  if (pathname.startsWith('/customers/')) return ['Khách hàng', 'Chi tiết khách hàng']
+  return [PAGE_TITLES[pathname] || 'Optways']
+}
+
 function initials(name = '') {
   return name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase()
 }
@@ -51,7 +72,12 @@ export default function Layout() {
   const navigate = useNavigate()
   const role = profile?.role || 'employee'
   const [collapsed, setCollapsed] = useState(false)
-const [openGroups, setOpenGroups] = useState({})
+  const [openGroups, setOpenGroups] = useState({})
+
+  useEffect(() => {
+    const activeGroup = NAV.find(item => item.children?.some(c => c.path === location.pathname))
+    if (activeGroup) setOpenGroups(prev => ({ ...prev, [activeGroup.id]: true }))
+  }, [location.pathname])
 
   function toggleGroup(id) {
     setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }))
@@ -60,6 +86,8 @@ const [openGroups, setOpenGroups] = useState({})
   function isGroupActive(children) {
     return children?.some(c => location.pathname === c.path)
   }
+
+  const crumbs = getBreadcrumb(location.pathname)
 
   return (
     <div className="app">
@@ -102,6 +130,7 @@ const [openGroups, setOpenGroups] = useState({})
                         className={`nav-child${location.pathname === child.path ? ' active' : ''}`}
                         onClick={() => navigate(child.path)}
                       >
+                        <span className="nav-child-dot" />
                         {child.label}
                       </div>
                     ))}
@@ -141,7 +170,14 @@ const [openGroups, setOpenGroups] = useState({})
 
       <div className={`main${collapsed ? ' collapsed' : ''}`}>
         <header className="topbar">
-          <h1 className="page-title">{PAGE_TITLES[location.pathname] || (location.pathname.startsWith('/customers/') ? 'Chi tiết khách hàng' : 'Optways')}</h1>
+          <div className="breadcrumb">
+            {crumbs.map((c, i) => (
+              <span key={i} className={i === crumbs.length - 1 ? 'breadcrumb-current' : ''}>
+                {c}
+                {i < crumbs.length - 1 && <i className="fa-light fa-chevron-right breadcrumb-sep" />}
+              </span>
+            ))}
+          </div>
           <div className="topbar-right">
             <span style={{ fontSize: '12px', color: 'var(--text-2)' }}>
               {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 function fmt(n) { return Number(n||0).toLocaleString('vi-VN') }
 
@@ -24,6 +25,8 @@ export default function SalaryPage() {
 
   return (
     <div>
+      <PageHeader title="Lương" subtitle="Xem bảng lương hàng tháng của bạn" />
+
       {selected ? (
         <div>
           <button className="btn btn-ghost btn-sm" onClick={()=>setSelected(null)} style={{marginBottom:'1rem'}}>

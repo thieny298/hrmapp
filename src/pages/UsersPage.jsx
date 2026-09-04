@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import Modal from '../components/Modal.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 const ROLES = { admin: 'Admin', manager: 'Manager', employee: 'Nhân viên' }
 const ROLE_BADGE = { admin: 'role-admin', manager: 'role-manager', employee: 'role-employee' }
@@ -77,6 +78,8 @@ export default function UsersPage() {
 
   return (
     <div>
+      <PageHeader title="Người dùng" subtitle="Quản lý tài khoản đăng nhập hệ thống" />
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <div style={{ fontSize: '13px', color: 'var(--text-2)' }}>{users.length} tài khoản</div>
         <button className="btn btn-primary" onClick={openAdd}>+ Tạo tài khoản</button>

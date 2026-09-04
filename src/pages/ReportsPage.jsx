@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import PageHeader from '../components/PageHeader.jsx'
 
 export default function ReportsPage() {
   const [data, setData] = useState(null)
@@ -75,6 +76,8 @@ export default function ReportsPage() {
 
   return (
     <div>
+      <PageHeader title="Báo cáo" subtitle="Thống kê tổng quan hệ thống" />
+
       <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
         <div className="stat-card"><div className="stat-label">Tổng nhân viên</div><div className="stat-value">{employees.length}</div></div>
         <div className="stat-card"><div className="stat-label">Tổng task</div><div className="stat-value">{tasks.length}</div></div>

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import Modal from '../components/Modal.jsx'
+import ImportEmployeesModal from '../components/ImportEmployeesModal.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 const DEPTS = ['Kỹ thuật', 'Marketing', 'Kinh doanh', 'Vận hành', 'HR', 'Tài chính', 'Khác']
 const STATUS = { active: 'Đang làm', probation: 'Thử việc', leave: 'Nghỉ phép', quit: 'Đã nghỉ' }
@@ -22,6 +24,7 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [toast, setToast] = useState(null)
   const canEdit = profile?.role === 'admin' || profile?.role === 'manager'
 
   useEffect(() => { fetchEmployees() }, [])
@@ -40,6 +43,17 @@ export default function EmployeesPage() {
   )
 
   function openEdit(e) { setForm({ ...e }); setError(''); setModal('edit') }
+
+  function showToast(msg) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  function handleImported(count) {
+    setModal(null)
+    fetchEmployees()
+    showToast(`Đã import ${count} nhân viên thành công!`)
+  }
 
   async function save() {
     if (!form.full_name?.trim()) { setError('Vui lòng nhập họ tên'); return }
@@ -85,11 +99,31 @@ export default function EmployeesPage() {
 
   return (
     <div>
+      {toast && (
+        <div style={{
+          position: 'fixed', top: '20px', right: '20px', zIndex: 2000,
+          padding: '12px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
+          background: '#dcfce7', color: '#16a34a', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+        }}>
+          <i className="fa-solid fa-check-circle" style={{ marginRight: '8px' }} />
+          {toast}
+        </div>
+      )}
+
+      <PageHeader title="Danh sách nhân viên" subtitle="Quản lý thông tin toàn bộ nhân viên" />
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <div className="search-wrap">
           <input className="search-input" placeholder="Tìm kiếm nhân viên..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        {canEdit && <button className="btn btn-primary" onClick={() => navigate('/nhan-vien/them-moi')}>+ Thêm nhân viên</button>}
+        {canEdit && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn" onClick={() => setModal('import')}>
+              <i className="fa-light fa-file-arrow-up" /> Import
+            </button>
+            <button className="btn btn-primary" onClick={() => navigate('/nhan-vien/them-moi')}>+ Thêm nhân viên</button>
+          </div>
+        )}
       </div>
 
       <div className="card" style={{ padding: 0 }}>
@@ -134,7 +168,7 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {modal && (
+      {modal === 'edit' && (
         <Modal
           title="Chỉnh sửa nhân viên"
           onClose={() => setModal(null)}
@@ -159,6 +193,10 @@ export default function EmployeesPage() {
           <F label="Ngày vào làm" k="join_date" type="date" />
           <F label="Ghi chú" k="notes" ta />
         </Modal>
+      )}
+
+      {modal === 'import' && (
+        <ImportEmployeesModal onClose={() => setModal(null)} onImported={handleImported} />
       )}
     </div>
   )

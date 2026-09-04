@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 const STATUS_BADGE = { pending:'badge-amber', approved:'badge-green', rejected:'badge-red' }
 const STATUS_LABEL = { pending:'Chờ duyệt', approved:'Đã duyệt', rejected:'Từ chối' }
@@ -158,6 +159,8 @@ export default function LeaveApprovalPage() {
 
   return (
     <div>
+      <PageHeader title="Duyệt nghỉ phép" subtitle="Phê duyệt hoặc từ chối đơn nghỉ phép của nhân viên" />
+
       {/* Toast */}
       {toast && (
         <div style={{

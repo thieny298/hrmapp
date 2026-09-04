@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import PageHeader from '../components/PageHeader.jsx'
 
 export default function DashboardPage() {
   const { profile } = useAuth()
@@ -82,6 +83,8 @@ export default function DashboardPage() {
 
   return (
     <div>
+      <PageHeader title="Tổng quan" subtitle="Xem nhanh tình hình làm việc hôm nay" />
+
       {/* Late popup */}
       {latePopup && (
         <div className="modal-overlay" onClick={() => setLatePopup(null)}>
