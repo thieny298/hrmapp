@@ -400,6 +400,7 @@ export default function LeavePage({ initialStep = 0 }) {
       handover_email: form.handover_email,
       go_abroad: form.go_abroad,
       status: 'pending',
+      approval_token: crypto.randomUUID(),
     }).select().single()
     if (error) { setError(error.message); setSubmitting(false); return }
 
@@ -499,7 +500,7 @@ export default function LeavePage({ initialStep = 0 }) {
 
       {(step === 1 || step === 2 || step === 3) && (
         <div>
-          <div className="steps">
+          <div className="steps" style={{ marginBottom: '1.5rem' }}>
             <div className={`step${step > 1 ? ' done' : step === 1 ? ' active' : ''}`}>
               <div className="step-circle">1</div>
               <span className="step-label">ĐIỀN ĐƠN</span>
@@ -642,9 +643,8 @@ export default function LeavePage({ initialStep = 0 }) {
           )}
 
           {step === 2 && (
-            <div className="card ">
-              <div className="card-narrow">
-                <div className="review-block">
+            <div className="card card-narrow">
+              <div className="review-block">
                 <div className="review-title">Thông tin nhân viên</div>
                 <div className="review-grid">
                   <div>
@@ -704,7 +704,6 @@ export default function LeavePage({ initialStep = 0 }) {
                   <i className="fa-solid fa-paper-plane" />
                   {submitting ? 'Đang gửi...' : 'Gửi đơn'}
                 </button>
-              </div>
               </div>
             </div>
           )}
