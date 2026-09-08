@@ -11,11 +11,9 @@ const INIT_PROFILE = {
   ethnicity: '', religion: '', current_address: '', permanent_address: '',
   tax_code: '', bank_account: '', bank_name: '', bank_branch: '', bank_owner: '',
   id_number: '', id_issued_date: '', id_issued_place: '',
-  passport_number: '', passport_type: '', passport_issue_date: '', passport_issue_place: '', passport_expiry_date: '',
   high_school_level: '', military_service: '', notes: '',
   emergency_name: '', emergency_phone: '', emergency_relation: '', emergency_address: '',
-  rank_code: '', rank_name: '', level: '',
-  contract_type: 'full_time', salary_coefficient: '',
+  contract_type: 'full_time',
   career_history: [],
 }
 
@@ -123,11 +121,10 @@ export default function ProfilePage() {
   async function saveEdit() {
     if (!draft) return
     setSaving(true); setError('')
-    const DATE_FIELDS = ['dob', 'id_issued_date', 'join_date', 'passport_issue_date', 'passport_expiry_date']
+    const DATE_FIELDS = ['dob', 'id_issued_date', 'join_date']
     const payload = { ...draft }
     DATE_FIELDS.forEach(f => { if (!payload[f]) payload[f] = null })
     payload.basic_salary = payload.basic_salary ? Number(payload.basic_salary) : 0
-    payload.salary_coefficient = payload.salary_coefficient ? Number(payload.salary_coefficient) : null
 
     const { error } = await supabase.from('employee_profiles').update(payload).eq('id', form.id)
     setSaving(false)
@@ -255,27 +252,18 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              <div className="section-title-plain" style={{ marginTop: '1.5rem' }}>Thông tin CMND/CCCD/Hộ chiếu</div>
+              <div className="section-title-plain" style={{ marginTop: '1.5rem' }}>Thông tin CMND/CCCD</div>
 
               {!isEditing('personal') ? (
                 <div className="form-grid">
                   <VField label="Số CCCD/CMND" value={form.id_number} />
                   <VField label="Ngày cấp, nơi cấp CCCD/CMND" value={form.id_issued_date ? `${form.id_issued_date}, ${form.id_issued_place || ''}` : ''} />
-                  <VField label="Số hộ chiếu" value={form.passport_number} />
-                  <VField label="Loại hộ chiếu" value={form.passport_type} />
-                  <VField label="Ngày cấp, nơi cấp hộ chiếu" value={form.passport_issue_date ? `${form.passport_issue_date}, ${form.passport_issue_place || ''}` : ''} />
-                  <VField label="Ngày hết hạn hộ chiếu" value={form.passport_expiry_date} />
                 </div>
               ) : (
                 <div className="form-grid">
                   <EField label="Số CCCD/CMND" k="id_number" draft={draft} setDraft={setDraft} />
                   <EField label="Ngày cấp CCCD/CMND" k="id_issued_date" type="date" draft={draft} setDraft={setDraft} />
                   <EField label="Nơi cấp CCCD/CMND" k="id_issued_place" draft={draft} setDraft={setDraft} />
-                  <EField label="Số hộ chiếu" k="passport_number" draft={draft} setDraft={setDraft} />
-                  <EField label="Loại hộ chiếu" k="passport_type" draft={draft} setDraft={setDraft} />
-                  <EField label="Ngày cấp hộ chiếu" k="passport_issue_date" type="date" draft={draft} setDraft={setDraft} />
-                  <EField label="Nơi cấp hộ chiếu" k="passport_issue_place" draft={draft} setDraft={setDraft} />
-                  <EField label="Ngày hết hạn hộ chiếu" k="passport_expiry_date" type="date" draft={draft} setDraft={setDraft} />
                 </div>
               )}
 
@@ -350,18 +338,12 @@ export default function ProfilePage() {
 
           {!isEditing('position') ? (
             <div className="form-grid">
-              <VField label="Mã ngạch" value={form.rank_code} />
-              <VField label="Tên ngạch" value={form.rank_name} />
-              <VField label="Bậc" value={form.level} />
               <VField label="Phòng ban" value={form.department} />
               <VField label="Chức vụ" value={form.position} />
               <VField label="Quản lý trực tiếp" value={managerName} />
             </div>
           ) : (
             <div className="form-grid">
-              <EField label="Mã ngạch" k="rank_code" draft={draft} setDraft={setDraft} />
-              <EField label="Tên ngạch" k="rank_name" draft={draft} setDraft={setDraft} />
-              <EField label="Bậc" k="level" draft={draft} setDraft={setDraft} />
               <EField label="Phòng ban" k="department" opts={[['', '— Chọn —'], ...DEPTS.map(d => [d, d])]} draft={draft} setDraft={setDraft} />
               <EField label="Chức vụ" k="position" draft={draft} setDraft={setDraft} />
               <EField label="Quản lý trực tiếp" k="manager_id" opts={managerOpts} draft={draft} setDraft={setDraft} />
@@ -392,7 +374,6 @@ export default function ProfilePage() {
             <div className="form-grid">
               <VField label="Ngày vào làm" value={form.join_date} />
               <VField label="Loại hợp đồng" value={CONTRACT_TYPES.find(c => c[0] === form.contract_type)?.[1]} />
-              <VField label="Hệ số lương" value={form.salary_coefficient} />
               <VField label="Lương cơ bản" value={form.basic_salary ? Number(form.basic_salary).toLocaleString('vi-VN') + ' đ' : ''} />
               <VField label="Ngân hàng" value={form.bank_name} />
               <VField label="Số tài khoản" value={form.bank_account} />
@@ -405,7 +386,6 @@ export default function ProfilePage() {
             <div className="form-grid">
               <EField label="Ngày vào làm" k="join_date" type="date" draft={draft} setDraft={setDraft} />
               <EField label="Loại hợp đồng" k="contract_type" opts={CONTRACT_TYPES} draft={draft} setDraft={setDraft} />
-              <EField label="Hệ số lương" k="salary_coefficient" type="number" draft={draft} setDraft={setDraft} />
               <div className="fg">
                 <label>Lương cơ bản</label>
                 <div className="input-suffix">

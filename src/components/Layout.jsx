@@ -3,31 +3,30 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 
 const NAV = [
-  { path: '/', label: 'Dashboard', icon: 'fa-light fa-grid-2', roles: ['admin','manager','employee'] },
+  { path: '/', label: 'Dashboard', icon: 'fa-light fa-grid-2', module: 'dashboard' },
   {
     id: 'nhansu', label: 'Nhân sự', icon: 'fa-light fa-users',
-    roles: ['admin','manager','employee'],
     children: [
-      { path: '/ho-so', label: 'Hồ sơ', roles: ['admin','manager','employee'] },
-      { path: '/nhan-vien', label: 'Danh sách nhân viên', roles: ['admin'] },
-      { path: '/nhan-vien/them-moi', label: 'Thêm nhân sự', roles: ['admin'] },
-      { path: '/luong', label: 'Lương', roles: ['admin','manager','employee'] },
+      { path: '/ho-so', label: 'Hồ sơ', alwaysVisible: true },
+      { path: '/nhan-vien', label: 'Danh sách nhân viên', module: 'employees' },
+      { path: '/nhan-vien/them-moi', label: 'Thêm nhân sự', module: 'employees', action: 'edit' },
+      { path: '/luong', label: 'Lương', alwaysVisible: true },
     ]
   },
   {
     id: 'thoigian', label: 'Thời gian', icon: 'fa-light fa-clock',
-    roles: ['admin','manager','employee'],
     children: [
-      { path: '/cham-cong', label: 'Chấm công', roles: ['admin','manager','employee'] },
-      { path: '/nghi-phep', label: 'Nghỉ phép', roles: ['admin','manager','employee'] },
-      { path: '/don-cua-toi', label: 'Đơn của tôi', roles: ['admin','manager','employee'] },
-      { path: '/duyet-nghi-phep', label: 'Duyệt nghỉ phép', roles: ['admin','manager'] },
+      { path: '/cham-cong', label: 'Chấm công', alwaysVisible: true },
+      { path: '/nghi-phep', label: 'Nghỉ phép', alwaysVisible: true },
+      { path: '/don-cua-toi', label: 'Đơn của tôi', alwaysVisible: true },
+      { path: '/duyet-nghi-phep', label: 'Duyệt nghỉ phép', module: 'leave', action: 'edit' },
     ]
   },
-  { path: '/tasks', label: 'Công việc', icon: 'fa-light fa-list-check', roles: ['admin','manager','employee'] },
-  { path: '/customers', label: 'Khách hàng', icon: 'fa-light fa-handshake', roles: ['admin','manager','employee'] },
-  { path: '/reports', label: 'Báo cáo', icon: 'fa-light fa-chart-line', roles: ['admin','manager'] },
-  { path: '/users', label: 'Người dùng', icon: 'fa-light fa-gear', roles: ['admin'] },
+  { path: '/tasks', label: 'Công việc', icon: 'fa-light fa-list-check', module: 'tasks' },
+  { path: '/customers', label: 'Khách hàng', icon: 'fa-light fa-handshake', module: 'customers' },
+  { path: '/reports', label: 'Báo cáo', icon: 'fa-light fa-chart-line', module: 'reports' },
+  { path: '/users', label: 'Người dùng', icon: 'fa-light fa-gear', module: 'users' },
+  { path: '/phan-quyen', label: 'Phân quyền', icon: 'fa-light fa-shield-halved', superOnly: true },
 ]
 
 const PAGE_TITLES = {
@@ -45,9 +44,10 @@ const PAGE_TITLES = {
   '/reports': 'Báo cáo & Thống kê',
   '/users': 'Quản lý người dùng',
   '/duyet-nghi-phep': 'Duyệt nghỉ phép',
+  '/phan-quyen': 'Phân quyền',
 }
 
-const ROLE_LABELS = { admin: 'Admin', manager: 'Manager', employee: 'Nhân viên' }
+const ROLE_LABELS = { admin: 'Admin', ceo: 'CEO', manager: 'Manager', staff: 'Nhân viên' }
 
 function getBreadcrumb(pathname) {
   for (const item of NAV) {
@@ -67,10 +67,10 @@ function initials(name = '') {
 }
 
 export default function Layout() {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, isSuper, canView, canEdit } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const role = profile?.role || 'employee'
+  const role = profile?.role || 'staff'
   const [collapsed, setCollapsed] = useState(false)
   const [openGroups, setOpenGroups] = useState({})
 
@@ -85,6 +85,13 @@ export default function Layout() {
 
   function isGroupActive(children) {
     return children?.some(c => location.pathname === c.path)
+  }
+
+  function canSee(item) {
+    if (item.superOnly) return isSuper()
+    if (item.alwaysVisible) return true
+    if (!item.module) return true
+    return item.action === 'edit' ? canEdit(item.module) : canView(item.module)
   }
 
   const crumbs = getBreadcrumb(location.pathname)
@@ -104,10 +111,10 @@ export default function Layout() {
 
         <nav className="sidebar-nav">
           {NAV.map(item => {
-            if (!item.roles.includes(role)) return null
+            if (!canSee(item)) return null
 
             if (item.children) {
-              const visible = item.children.filter(c => c.roles.includes(role))
+              const visible = item.children.filter(c => canSee(c))
               if (!visible.length) return null
               const groupActive = isGroupActive(visible)
               const isOpen = openGroups[item.id]

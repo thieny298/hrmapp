@@ -15,12 +15,17 @@ import UsersPage from './pages/UsersPage.jsx'
 import LeaveApprovalPage from './pages/LeaveApprovalPage.jsx'
 import EmployeesPage from './pages/EmployeesPage.jsx'
 import EmployeeCreatePage from './pages/EmployeeCreatePage.jsx'
+import PermissionsPage from './pages/PermissionsPage.jsx'
 
-function ProtectedRoute({ children, allowedRoles }) {
-  const { user, profile, loading } = useAuth()
+function ProtectedRoute({ children, allowedRoles, module, action = 'view' }) {
+  const { user, profile, loading, isSuper, canView, canEdit } = useAuth()
   if (loading) return <div className="loading-screen"><div className="spinner" /></div>
   if (!user) return <Navigate to="/login" replace />
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) return <Navigate to="/" replace />
+  if (module) {
+    const ok = isSuper() || (action === 'edit' ? canEdit(module) : canView(module))
+    if (!ok) return <Navigate to="/" replace />
+  }
   return children
 }
 
@@ -41,12 +46,13 @@ export default function App() {
         <Route path="tasks" element={<TasksPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerDetailPage />} />
-        <Route path="reports" element={<ProtectedRoute allowedRoles={['admin','manager']}><ReportsPage /></ProtectedRoute>} />
-        <Route path="users" element={<ProtectedRoute allowedRoles={['admin']}><UsersPage /></ProtectedRoute>} />
-        <Route path="duyet-nghi-phep" element={<ProtectedRoute allowedRoles={['admin','manager']}><LeaveApprovalPage /></ProtectedRoute>} />
-        <Route path="nhan-vien" element={<ProtectedRoute allowedRoles={['admin']}><EmployeesPage /></ProtectedRoute>} />
-        <Route path="nhan-vien/them-moi" element={<ProtectedRoute allowedRoles={['admin']}><EmployeeCreatePage /></ProtectedRoute>} />
-        <Route path="nhan-vien/:id" element={<ProtectedRoute allowedRoles={['admin']}><ProfilePage /></ProtectedRoute>} />
+        <Route path="reports" element={<ProtectedRoute module="reports"><ReportsPage /></ProtectedRoute>} />
+        <Route path="users" element={<ProtectedRoute module="users"><UsersPage /></ProtectedRoute>} />
+        <Route path="duyet-nghi-phep" element={<ProtectedRoute module="leave" action="edit"><LeaveApprovalPage /></ProtectedRoute>} />
+        <Route path="nhan-vien" element={<ProtectedRoute module="employees"><EmployeesPage /></ProtectedRoute>} />
+        <Route path="nhan-vien/them-moi" element={<ProtectedRoute module="employees" action="edit"><EmployeeCreatePage /></ProtectedRoute>} />
+        <Route path="nhan-vien/:id" element={<ProtectedRoute module="employees"><ProfilePage /></ProtectedRoute>} />
+        <Route path="phan-quyen" element={<ProtectedRoute allowedRoles={['admin', 'ceo']}><PermissionsPage /></ProtectedRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

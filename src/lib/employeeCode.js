@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 export const EMPLOYEE_CODE_PREFIX = 'OWS-'
+export const RESERVED_SEQ = 2
 
 export async function nextEmployeeCodes(count = 1) {
   const { data } = await supabase
@@ -12,7 +13,7 @@ export async function nextEmployeeCodes(count = 1) {
     const match = new RegExp(`^${EMPLOYEE_CODE_PREFIX}(\\d+)$`).exec(row.employee_code || '')
     const seq = match ? parseInt(match[1], 10) : 0
     return seq > max ? seq : max
-  }, 0)
+  }, RESERVED_SEQ)
 
   return Array.from({ length: count }, (_, i) => `${EMPLOYEE_CODE_PREFIX}${String(maxSeq + i + 1).padStart(3, '0')}`)
 }
