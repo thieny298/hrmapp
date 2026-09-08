@@ -5,7 +5,7 @@ export function readWorkbook(file) {
     const reader = new FileReader()
     reader.onload = e => {
       try {
-        const wb = XLSX.read(e.target.result, { type: 'array' })
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true })
         resolve(wb)
       } catch (err) {
         reject(err)
@@ -64,6 +64,13 @@ export function validateRows(rows, config) {
       }
 
       if (col.type === 'date') {
+        if (value instanceof Date) {
+          const y = value.getUTCFullYear()
+          const mo = String(value.getUTCMonth() + 1).padStart(2, '0')
+          const d = String(value.getUTCDate()).padStart(2, '0')
+          parsed[col.field] = `${y}-${mo}-${d}`
+          return
+        }
         const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value).trim())
         if (!m) { rowErrors.push(`"${col.label}" sai định dạng ngày (DD/MM/YYYY)`); return }
         parsed[col.field] = `${m[3]}-${m[2]}-${m[1]}`

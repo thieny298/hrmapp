@@ -16,7 +16,6 @@ export const employeesImportConfig = {
     { field: 'marital_status', label: 'Tình trạng hôn nhân', options: [['single', 'Độc thân'], ['married', 'Đã kết hôn'], ['other', 'Khác']] },
     { field: 'department', label: 'Phòng ban', required: true },
     { field: 'position', label: 'Chức vụ', required: true },
-    { field: 'probation_date', label: 'Ngày thử việc', type: 'date' },
     { field: 'join_date', label: 'Ngày vào làm', type: 'date', required: true },
     { field: 'contract_type', label: 'Loại hợp đồng', options: [['probation', 'Thử việc'], ['fixed_term', 'HĐLĐ 1 năm'], ['indefinite', 'HĐLĐ không xác định thời hạn']] },
     { field: 'basic_salary', label: 'Lương cơ bản', type: 'number' },

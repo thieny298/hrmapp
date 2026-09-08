@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import DateInput from '../components/DateInput.jsx'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
@@ -11,23 +11,22 @@ const INIT_PROFILE = {
   ethnicity: '', religion: '', current_address: '', permanent_address: '',
   tax_code: '', bank_account: '', bank_name: '', bank_branch: '', bank_owner: '',
   id_number: '', id_issued_date: '', id_issued_place: '',
-  high_school_level: '', military_service: '', notes: '',
+  notes: '',
   emergency_name: '', emergency_phone: '', emergency_relation: '', emergency_address: '',
   contract_type: 'full_time',
-  career_history: [],
+  work_history: [],
 }
 
 const CONTRACT_TYPES = [
-  ['full_time', 'Chính thức (toàn thời gian)'],
-  ['part_time', 'Bán thời gian'],
-  ['contract', 'Hợp đồng dịch vụ'],
-  ['intern', 'Thực tập sinh'],
+  ['probation', 'Thử việc'],
+  ['fixed_term', 'Hợp đồng lao động 1 năm'],
+  ['indefinite', 'Hợp đồng lao động không xác định thời hạn'],
 ]
 
 const STATUS = { active: 'Đang làm', probation: 'Thử việc', leave: 'Nghỉ phép', quit: 'Đã nghỉ' }
 const GENDERS = [['', '— Chọn —'], ['male', 'Nam'], ['female', 'Nữ'], ['other', 'Khác']]
 const MARITAL = [['', '— Chọn —'], ['single', 'Độc thân'], ['married', 'Đã kết hôn'], ['divorced', 'Ly hôn']]
-const DEPTS = ['Kinh doanh', 'Vận hành', 'HR', 'Tài chính', 'Kỹ thuật', 'Marketing', 'BOD', 'Khác']
+const DEPTS = ['Kế toán', 'Kinh doanh', 'Vận hành', 'HR', 'Tài chính', 'Kỹ thuật', 'Marketing', 'BOD', 'Khác']
 const EMERGENCY_RELATIONS = [
   ['', '— Chọn —'], ['spouse', 'Vợ / Chồng'], ['parent', 'Bố / Mẹ'],
   ['sibling', 'Anh / Chị / Em'], ['child', 'Con'], ['friend', 'Bạn bè'], ['other', 'Khác'],
@@ -49,6 +48,8 @@ function initials(name = '') { return name.split(' ').slice(-2).map(w => w[0]).j
 
 function statusLabel(s) { return STATUS[s] || s }
 function genderLabel(g) { return g === 'male' ? 'Nam' : g === 'female' ? 'Nữ' : g === 'other' ? 'Khác' : '—' }
+function deptLabel(dept) { if (!dept) return ''; return dept === 'Giám đốc' ? 'Ban Giám đốc' : `Phòng ${dept}` }
+function formatDate(d) { if (!d) return ''; const [y, m, day] = d.split('-'); return y && m && day ? `${day}-${m}-${y}` : d }
 
 // field hiển thị (view mode)
 function VField({ label, value, wide }) {
@@ -79,8 +80,9 @@ function EField({ label, k, draft, setDraft, type = 'text', opts, wide }) {
 
 export default function ProfilePage() {
   const { id: routeId } = useParams()
+  const navigate = useNavigate()
   const { profile: authProfile } = useAuth()
-  const isAdmin = authProfile?.role === 'admin'
+  const isAdmin = ['admin', 'ceo'].includes(authProfile?.role)
   const viewingOtherId = isAdmin && routeId ? routeId : null
 
   const [form, setForm] = useState(INIT_PROFILE)
@@ -103,7 +105,7 @@ export default function ProfilePage() {
       ? await query.eq('id', viewingOtherId).single()
       : await query.eq('user_id', authProfile.id).single()
 
-    if (data) setForm({ ...INIT_PROFILE, ...data, career_history: data.career_history || [] })
+    if (data) setForm({ ...INIT_PROFILE, ...data, work_history: data.work_history || [] })
     else if (!viewingOtherId) setForm(p => ({ ...p, full_name: authProfile.full_name || '', email: authProfile.email || '' }))
     setLoading(false)
   }
@@ -139,6 +141,32 @@ export default function ProfilePage() {
 
   return (
     <div>
+      <div className="page-header-row">
+        <div className="page-header-left">
+          {viewingOtherId && (
+            <button className="back-btn" onClick={() => navigate('/nhan-vien')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+          )}
+          <div>
+            <h1>{form.full_name || 'Hồ sơ nhân viên'}</h1>
+            <p>{form.position || '—'}{form.department ? ` · ${deptLabel(form.department)}` : ''}</p>
+          </div>
+        </div>
+        {isAdmin && !COMING_SOON_TABS.includes(activeTab) && (
+          <div className="flex gap-8">
+            {isEditing(activeTab) ? (
+              <>
+                <button className="btn" onClick={cancelEdit}>Hủy</button>
+                <button className="btn btn-primary" onClick={saveEdit} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu thay đổi'}</button>
+              </>
+            ) : (
+              <button className="btn" onClick={() => startEdit(activeTab)}>Chỉnh sửa</button>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="tabbar">
         {TABS.map(t => (
           <button
@@ -158,60 +186,128 @@ export default function ProfilePage() {
       {/* Tab: Thông tin chung */}
       {activeTab === 'general' && (
         <>
-          <div className="card">
-            <div className="profile-header-row">
-              <div className="profile-header-left">
-                <div className="profile-avatar avatar avatar-xl">{initials(form.full_name || '?')}</div>
-                <div>
-                  <h2 className="profile-name">{form.full_name || 'Chưa cập nhật tên'}</h2>
-                  <div className="profile-position">{form.position || '—'}</div>
-                  <div className="profile-tags">
-                    {form.department && <span className="tag tag-code">{form.department}</span>}
-                    <span className="tag tag-approved">{statusLabel(form.status)}</span>
-                    {form.employee_code && <span className="tag tag-other">Mã số NV: {form.employee_code}</span>}
+          {!isEditing('general') ? (
+            <div className="card">
+              <div className="profile-header-row">
+                <div className="profile-header-left">
+                  <div className="profile-avatar avatar avatar-xl">{initials(form.full_name || '?')}</div>
+                  <div>
+                    <h2 className="profile-name">{form.full_name || 'Chưa cập nhật tên'}</h2>
+                    <div className="profile-position">{form.position || '—'}</div>
+                    <div className="profile-tags">
+                      {form.department && <span className="tag tag-code">{deptLabel(form.department)}</span>}
+                      <span className="tag tag-approved">{statusLabel(form.status)}</span>
+                      {form.employee_code && <span className="tag tag-other">Mã số NV: {form.employee_code}</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="profile-header-meta">
-                <div className="meta-item"><span className="meta-label">Email</span><span className="meta-value">{form.email || '—'}</span></div>
-                <div className="meta-item"><span className="meta-label">Điện thoại</span><span className="meta-value">{form.phone || '—'}</span></div>
-                <div className="meta-item"><span className="meta-label">Học vấn</span><span className="meta-value">{form.education_level || '—'}</span></div>
+                <div className="profile-header-meta">
+                  <div className="meta-item"><span className="meta-label">Email</span><span className="meta-value">{form.email || '—'}</span></div>
+                  <div className="meta-item"><span className="meta-label">Điện thoại</span><span className="meta-value">{form.phone || '—'}</span></div>
+                  <div className="meta-item"><span className="meta-label">Học vấn</span><span className="meta-value">{form.education_level || '—'}</span></div>
 
-                <div className="meta-item"><span className="meta-label">Giới tính</span><span className="meta-value">{genderLabel(form.gender)}</span></div>
-                <div className="meta-item"><span className="meta-label">Ngày sinh</span><span className="meta-value">{form.dob || '—'}</span></div>
-                <div className="meta-item"><span className="meta-label">Nguyên quán</span><span className="meta-value">{form.hometown || '—'}</span></div>
+                  <div className="meta-item"><span className="meta-label">Giới tính</span><span className="meta-value">{genderLabel(form.gender)}</span></div>
+                  <div className="meta-item"><span className="meta-label">Ngày sinh</span><span className="meta-value">{formatDate(form.dob) || '—'}</span></div>
+                  <div className="meta-item"><span className="meta-label">Nguyên quán</span><span className="meta-value">{form.hometown || '—'}</span></div>
 
-                <div className="meta-item"><span className="meta-label">Ngày nhận việc</span><span className="meta-value">{form.join_date || '—'}</span></div>
-                <div className="meta-item"><span className="meta-label">Hôn nhân</span><span className="meta-value">{MARITAL.find(m => m[0] === form.marital_status)?.[1] || '—'}</span></div>
-                <div className="meta-item"><span className="meta-label">Tên tài khoản</span><span className="meta-value">{form.account_name || '—'}</span></div>
+                  <div className="meta-item"><span className="meta-label">Ngày nhận việc</span><span className="meta-value">{formatDate(form.join_date) || '—'}</span></div>
+                  <div className="meta-item"><span className="meta-label">Hôn nhân</span><span className="meta-value">{MARITAL.find(m => m[0] === form.marital_status)?.[1] || '—'}</span></div>
+                  <div className="meta-item"><span className="meta-label">Tên tài khoản</span><span className="meta-value">{form.account_name || '—'}</span></div>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="card">
+              <div className="section-title-plain">Thông tin chung</div>
+              <div className="form-grid">
+                <EField label="Họ tên" k="full_name" draft={draft} setDraft={setDraft} wide />
+                <EField label="Chức vụ" k="position" draft={draft} setDraft={setDraft} />
+                <EField label="Phòng ban" k="department" opts={[['', '— Chọn —'], ...DEPTS.map(d => [d, d])]} draft={draft} setDraft={setDraft} />
+                <EField label="Trạng thái" k="status" opts={Object.entries(STATUS)} draft={draft} setDraft={setDraft} />
+                <EField label="Email" k="email" type="email" draft={draft} setDraft={setDraft} />
+                <EField label="Điện thoại" k="phone" draft={draft} setDraft={setDraft} />
+                <EField label="Học vấn" k="education_level" draft={draft} setDraft={setDraft} />
+                <EField label="Giới tính" k="gender" opts={GENDERS} draft={draft} setDraft={setDraft} />
+                <EField label="Ngày sinh" k="dob" type="date" draft={draft} setDraft={setDraft} />
+                <EField label="Nguyên quán" k="hometown" draft={draft} setDraft={setDraft} />
+                <EField label="Ngày nhận việc" k="join_date" type="date" draft={draft} setDraft={setDraft} />
+                <EField label="Hôn nhân" k="marital_status" opts={MARITAL} draft={draft} setDraft={setDraft} />
+                <EField label="Tên tài khoản" k="account_name" draft={draft} setDraft={setDraft} />
+              </div>
+            </div>
+          )}
 
-          <div className="dashboard-card">
-            <div className="card-title">Quá trình làm việc</div>
-            {form.career_history.length > 0
-              ? (
-                <div className="timeline">
-                  {form.career_history.map((w, i) => (
-                    <div key={i} className="timeline-item">
-                      <span className={`timeline-dot${w.status === 'active' ? ' dot-active' : ''}`} />
-                      <div className="timeline-content">
-                        <div className="timeline-row">
-                          <strong>{w.title}</strong>
-                          <span className={`tag tag-${w.status === 'active' ? 'approved' : 'ended'}`}>{w.status === 'active' ? 'Đang làm việc' : 'Đã làm việc'}</span>
+          <div className="dashboard-grid">
+            <div className="dashboard-col-left">
+              <div className="dashboard-card">
+                <div className="card-title">Quá trình làm việc</div>
+                {form.work_history.length > 0
+                  ? (
+                    <div className="timeline">
+                      {form.work_history.map((w, i) => (
+                        <div key={i} className="timeline-item">
+                          <span className={`timeline-dot${w.status === 'active' ? ' dot-active' : ''}`} />
+                          <div className="timeline-content">
+                            <div className="timeline-row">
+                              <strong>{w.title}</strong>
+                              <span className={`tag tag-${w.status === 'active' ? 'approved' : 'completed'}`}>{w.status === 'active' ? 'Đang làm việc' : 'Đã làm việc'}</span>
+                            </div>
+                            <div className="timeline-sub">{w.contract_label}{w.contract_code ? ` — ${w.contract_code}` : ''}</div>
+                            <div className="timeline-sub">{[w.company, w.location, w.department].filter(Boolean).join(' · ')}</div>
+                            <div className="timeline-date">{w.date}</div>
+                          </div>
                         </div>
-                        <div className="timeline-sub">{w.contract_label} — {w.contract_code}</div>
-                        <div className="timeline-sub">{w.company} · {w.location} · {w.department}</div>
-                        <div className="timeline-date">{w.date}</div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )
-              : <div className="empty-hint">Chưa có dữ liệu.</div>
-            }
+                  )
+                  : <div className="empty-hint">Chưa có dữ liệu.</div>
+                }
+              </div>
+            </div>
+
+            <div className="dashboard-col-right">
+              <div className="dashboard-card">
+                <div className="card-title">Khen thưởng, kỷ luật</div>
+                {form.rewards?.length > 0
+                  ? (
+                    <div className="reward-list">
+                      {form.rewards.map((r, i) => (
+                        <div key={i} className={`reward-item${r.type === 'discipline' ? ' is-discipline' : ''}`}>
+                          <div className="reward-row">
+                            <strong>{r.title}</strong>
+                            <span className={`tag tag-${r.status || 'pending'}`}>{r.status === 'approved' ? 'Đã duyệt' : 'Chờ duyệt'}</span>
+                          </div>
+                          <div className="reward-date">{r.date}</div>
+                          {r.note && <div className="reward-note">{r.note}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                  : <div className="empty-hint">Chưa có dữ liệu.</div>
+                }
+              </div>
+
+              <div className="dashboard-card">
+                <div className="card-title">Đào tạo</div>
+                {form.trainings?.length > 0
+                  ? (
+                    <div className="training-list">
+                      {form.trainings.map((t, i) => (
+                        <div key={i} className="training-item">
+                          <div className="training-row">
+                            <span>{t.title}</span>
+                            <span className={`tag tag-${t.status || 'not_started'}`}>{t.status === 'completed' ? 'Hoàn thành' : t.status === 'in_progress' ? 'Đang học' : 'Chưa bắt đầu'}</span>
+                          </div>
+                          <div className="training-date">{t.date}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                  : <div className="empty-hint">Chưa có dữ liệu.</div>
+                }
+              </div>
+            </div>
           </div>
         </>
       )}
@@ -229,10 +325,9 @@ export default function ProfilePage() {
                   <VField label="Tôn giáo" value={form.religion} />
                   <VField label="Nơi ở hiện nay" value={form.current_address} />
                   <VField label="Mã số thuế cá nhân" value={form.tax_code} />
-                  <VField label="TK ngân hàng" value={form.bank_account ? `${form.bank_owner || ''}, ${form.bank_account}, ${form.bank_name || ''} ${form.bank_branch ? '- ' + form.bank_branch : ''}` : ''} wide />
-                  <VField label="Trình độ phổ thông" value={form.high_school_level} />
-                  <VField label="Trình độ học vấn cao nhất" value={form.education_level} />
-                  <VField label="Nghĩa vụ quân sự" value={form.military_service} />
+                  <VField label="Số tài khoản" value={form.bank_account} />
+                  <VField label="Ngân hàng" value={form.bank_name ? `${form.bank_name}${form.bank_branch ? ' - ' + form.bank_branch : ''}` : ''} />
+                  <VField label="Trình độ học vấn" value={form.education_level} />
                   <VField label="Ghi chú" value={form.notes} wide />
                 </div>
               ) : (
@@ -245,9 +340,7 @@ export default function ProfilePage() {
                   <EField label="Số TK ngân hàng" k="bank_account" draft={draft} setDraft={setDraft} />
                   <EField label="Ngân hàng" k="bank_name" draft={draft} setDraft={setDraft} />
                   <EField label="Chi nhánh" k="bank_branch" draft={draft} setDraft={setDraft} />
-                  <EField label="Trình độ phổ thông" k="high_school_level" draft={draft} setDraft={setDraft} />
-                  <EField label="Trình độ học vấn cao nhất" k="education_level" draft={draft} setDraft={setDraft} />
-                  <EField label="Nghĩa vụ quân sự" k="military_service" draft={draft} setDraft={setDraft} />
+                  <EField label="Trình độ học vấn" k="education_level" draft={draft} setDraft={setDraft} />
                   <EField label="Ghi chú" k="notes" draft={draft} setDraft={setDraft} wide />
                 </div>
               )}
@@ -257,7 +350,8 @@ export default function ProfilePage() {
               {!isEditing('personal') ? (
                 <div className="form-grid">
                   <VField label="Số CCCD/CMND" value={form.id_number} />
-                  <VField label="Ngày cấp, nơi cấp CCCD/CMND" value={form.id_issued_date ? `${form.id_issued_date}, ${form.id_issued_place || ''}` : ''} />
+                  <VField label="Ngày cấp CCCD/CMND" value={formatDate(form.id_issued_date)} />
+                  <VField label="Nơi cấp CCCD/CMND" value={form.id_issued_place} />
                 </div>
               ) : (
                 <div className="form-grid">
@@ -284,19 +378,6 @@ export default function ProfilePage() {
                   <EField label="Địa chỉ" k="emergency_address" draft={draft} setDraft={setDraft} wide />
                 </div>
               )}
-
-              <div className="tab-actions">
-                {isAdmin ? (
-                  isEditing('personal') ? (
-                    <>
-                      <button className="btn btn-ghost" onClick={cancelEdit}>Hủy</button>
-                      <button className="btn btn-primary" onClick={saveEdit} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu thay đổi'}</button>
-                    </>
-                  ) : (
-                    <button className="btn btn-outline" onClick={() => startEdit('personal')}>Chỉnh sửa</button>
-                  )
-                ) : null}
-              </div>
             </div>
           </div>
 
@@ -306,11 +387,11 @@ export default function ProfilePage() {
                 <div className="profile-avatar avatar avatar-lg">{initials(form.full_name || '?')}</div>
                 <div>
                   <h2 className="profile-name">{form.full_name || '—'}</h2>
-                  <div className="profile-position">{form.position} · {form.department}</div>
+                  <div className="profile-position">{form.position} · {deptLabel(form.department)}</div>
                 </div>
               </div>
               <div className="profile-tags" style={{ marginTop: '10px' }}>
-                {form.employee_code && <span className="tag tag-plain">Mã số NV: {form.employee_code}</span>}
+                {form.employee_code && <span className="tag tag-other">Mã số NV: {form.employee_code}</span>}
                 <span className="tag tag-approved">{statusLabel(form.status)}</span>
               </div>
 
@@ -318,9 +399,9 @@ export default function ProfilePage() {
                 <li><i className="fa-light fa-envelope" /><div><span className="contact-label">Email</span><span className="contact-value">{form.email || '—'}</span></div></li>
                 <li><i className="fa-light fa-phone" /><div><span className="contact-label">Điện thoại</span><span className="contact-value">{form.phone || '—'}</span></div></li>
                 <li><i className="fa-light fa-graduation-cap" /><div><span className="contact-label">Học vấn</span><span className="contact-value">{form.education_level || '—'}</span></div></li>
-                <li><i className="fa-light fa-cake-candles" /><div><span className="contact-label">Ngày sinh</span><span className="contact-value">{form.dob || '—'}</span></div></li>
+                <li><i className="fa-light fa-cake-candles" /><div><span className="contact-label">Ngày sinh</span><span className="contact-value">{formatDate(form.dob) || '—'}</span></div></li>
                 <li><i className="fa-light fa-venus-mars" /><div><span className="contact-label">Giới tính</span><span className="contact-value">{genderLabel(form.gender)}</span></div></li>
-                <li><i className="fa-light fa-calendar-check" /><div><span className="contact-label">Ngày nhận việc</span><span className="contact-value">{form.join_date || '—'}</span></div></li>
+                <li><i className="fa-light fa-calendar-check" /><div><span className="contact-label">Ngày nhận việc</span><span className="contact-value">{formatDate(form.join_date) || '—'}</span></div></li>
                 <li><i className="fa-light fa-house" /><div><span className="contact-label">Nguyên quán</span><span className="contact-value">{form.hometown || '—'}</span></div></li>
                 <li><i className="fa-light fa-heart" /><div><span className="contact-label">Hôn nhân</span><span className="contact-value">{MARITAL.find(m => m[0] === form.marital_status)?.[1] || '—'}</span></div></li>
                 <li><i className="fa-light fa-address-card" /><div><span className="contact-label">Tên tài khoản</span><span className="contact-value">{form.account_name || '—'}</span></div></li>
@@ -349,19 +430,6 @@ export default function ProfilePage() {
               <EField label="Quản lý trực tiếp" k="manager_id" opts={managerOpts} draft={draft} setDraft={setDraft} />
             </div>
           )}
-
-          <div className="tab-actions">
-            {isAdmin ? (
-              isEditing('position') ? (
-                <>
-                  <button className="btn btn-ghost" onClick={cancelEdit}>Hủy</button>
-                  <button className="btn btn-primary" onClick={saveEdit} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu thay đổi'}</button>
-                </>
-              ) : (
-                <button className="btn btn-outline" onClick={() => startEdit('position')}>Chỉnh sửa</button>
-              )
-            ) : null}
-          </div>
         </div>
       )}
 
@@ -372,7 +440,7 @@ export default function ProfilePage() {
 
           {!isEditing('salary') ? (
             <div className="form-grid">
-              <VField label="Ngày vào làm" value={form.join_date} />
+              <VField label="Ngày vào làm" value={formatDate(form.join_date)} />
               <VField label="Loại hợp đồng" value={CONTRACT_TYPES.find(c => c[0] === form.contract_type)?.[1]} />
               <VField label="Lương cơ bản" value={form.basic_salary ? Number(form.basic_salary).toLocaleString('vi-VN') + ' đ' : ''} />
               <VField label="Ngân hàng" value={form.bank_name} />
@@ -401,19 +469,6 @@ export default function ProfilePage() {
               <EField label="Nơi đăng ký KCB ban đầu" k="insurance_place" draft={draft} setDraft={setDraft} wide />
             </div>
           )}
-
-          <div className="tab-actions">
-            {isAdmin ? (
-              isEditing('salary') ? (
-                <>
-                  <button className="btn btn-ghost" onClick={cancelEdit}>Hủy</button>
-                  <button className="btn btn-primary" onClick={saveEdit} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu thay đổi'}</button>
-                </>
-              ) : (
-                <button className="btn btn-outline" onClick={() => startEdit('salary')}>Chỉnh sửa</button>
-              )
-            ) : null}
-          </div>
         </div>
       )}
 

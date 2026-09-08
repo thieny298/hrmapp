@@ -5,6 +5,66 @@ import { employeesImportConfig } from '../lib/import/configs/employees'
 import { nextEmployeeCodes } from '../lib/employeeCode'
 import { supabase } from '../lib/supabase'
 
+const CONTRACT_LABELS = {
+  probation: 'Thử việc 2 tháng',
+  fixed_term: 'Hợp đồng lao động 1 năm',
+  indefinite: 'Hợp đồng lao động không xác định thời hạn',
+}
+
+function deptLabel(dept) { if (!dept) return ''; return dept === 'Giám đốc' ? 'Ban Giám đốc' : `Phòng ${dept}` }
+
+function toDisplayDate(d) {
+  if (!d) return ''
+  const [y, m, day] = d.split('-')
+  return y && m && day ? `${day}-${m}-${y}` : d
+}
+
+function buildWorkHistory(row) {
+  const entries = []
+  const isCurrentlyProbation = row.contract_type === 'probation'
+
+  if (row.probation_date) {
+    entries.push({
+      title: 'Thử việc',
+      status: isCurrentlyProbation ? 'active' : 'ended',
+      contract_label: CONTRACT_LABELS.probation,
+      contract_code: '',
+      company: 'Optways',
+      location: '',
+      department: deptLabel(row.department),
+      date: toDisplayDate(row.probation_date),
+    })
+  }
+
+  if (!isCurrentlyProbation) {
+    entries.push({
+      title: 'Nhân viên chính thức',
+      status: 'active',
+      contract_label: CONTRACT_LABELS[row.contract_type] || '',
+      contract_code: '',
+      company: 'Optways',
+      location: '',
+      department: deptLabel(row.department),
+      date: toDisplayDate(row.join_date),
+    })
+  }
+
+  if (entries.length === 0) {
+    entries.push({
+      title: 'Nhân viên chính thức',
+      status: 'active',
+      contract_label: CONTRACT_LABELS[row.contract_type] || '',
+      contract_code: '',
+      company: 'Optways',
+      location: '',
+      department: deptLabel(row.department),
+      date: toDisplayDate(row.join_date),
+    })
+  }
+
+  return entries.reverse()
+}
+
 export default function ImportEmployeesModal({ onClose, onImported }) {
   const [fileName, setFileName] = useState('')
   const [parsing, setParsing] = useState(false)
@@ -46,7 +106,16 @@ export default function ImportEmployeesModal({ onClose, onImported }) {
 
     const sorted = [...validRows].sort((a, b) => (a.join_date || '').localeCompare(b.join_date || ''))
     const codes = await nextEmployeeCodes(sorted.length)
-    const payload = sorted.map((row, i) => ({ ...row, employee_code: codes[i] }))
+    const payload = sorted.map((row, i) => {
+      const { probation_date, ...rest } = row
+      return {
+        ...rest,
+        employee_code: codes[i],
+        desired_role: row.desired_role || 'staff',
+        status: 'active',
+        work_history: buildWorkHistory(row),
+      }
+    })
 
     const { error: insErr } = await supabase.from('employee_profiles').insert(payload)
     setImporting(false)

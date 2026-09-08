@@ -6,11 +6,13 @@ import Modal from '../components/Modal.jsx'
 import ImportEmployeesModal from '../components/ImportEmployeesModal.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 
-const DEPTS = ['Kỹ thuật', 'Marketing', 'Kinh doanh', 'Vận hành', 'HR', 'Tài chính', 'Khác']
+const DEPTS = ['Kế toán', 'Kỹ thuật', 'Marketing', 'Kinh doanh', 'Vận hành', 'HR', 'Tài chính', 'Khác']
 const STATUS = { active: 'Đang làm', probation: 'Thử việc', leave: 'Nghỉ phép', quit: 'Đã nghỉ' }
 const STATUS_BADGE = { active: 'badge-green', probation: 'badge-amber', leave: 'badge-blue', quit: 'badge-gray' }
 
 function initials(name = '') { return name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase() }
+function deptLabel(dept) { if (!dept) return ''; return dept === 'Giám đốc' ? 'Ban Giám đốc' : `Phòng ${dept}` }
+function formatDate(d) { if (!d) return ''; const [y, m, day] = d.split('-'); return y && m && day ? `${day}-${m}-${y}` : d }
 
 const EMPTY_FORM = { full_name: '', department: DEPTS[0], position: '', status: 'active', email: '', phone: '', join_date: new Date().toISOString().slice(0, 10), dob: '', notes: '' }
 
@@ -25,13 +27,13 @@ export default function EmployeesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState(null)
-  const canEdit = profile?.role === 'admin' || profile?.role === 'manager'
+  const canEdit = ['admin', 'ceo', 'manager'].includes(profile?.role)
 
   useEffect(() => { fetchEmployees() }, [])
 
   async function fetchEmployees() {
     setLoading(true)
-    const { data } = await supabase.from('employee_profiles').select('*').order('created_at', { ascending: false })
+    const { data } = await supabase.from('employee_profiles').select('*').order('updated_at', { ascending: false })
     setEmployees(data || [])
     setLoading(false)
   }
@@ -131,7 +133,7 @@ export default function EmployeesPage() {
           <table>
             <thead>
               <tr>
-                {['Nhân viên', 'Phòng ban', 'Vị trí', 'Trạng thái', 'Email', 'Điện thoại', 'Ngày vào', canEdit ? '' : null].filter(Boolean).map(c => <th key={c}>{c}</th>)}
+                {['Nhân viên', 'Phòng ban', 'Vị trí', 'Trạng thái', 'Email', 'Điện thoại', 'Ngày vào', canEdit ? 'Thao tác' : null].filter(Boolean).map(c => <th key={c}>{c}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -140,23 +142,26 @@ export default function EmployeesPage() {
                 : filtered.map(e => (
                   <tr key={e.id}>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+                        onClick={() => navigate(`/nhan-vien/${e.id}`)}
+                      >
                         <div className="avatar avatar-sm">{initials(e.full_name)}</div>
                         <span style={{ fontWeight: 500 }}>{e.full_name}</span>
                       </div>
                     </td>
-                    <td>{e.department}</td>
+                    <td>{deptLabel(e.department)}</td>
                     <td style={{ color: 'var(--text-2)' }}>{e.position}</td>
                     <td><span className={`badge ${STATUS_BADGE[e.status]}`}>{STATUS[e.status]}</span></td>
                     <td style={{ color: 'var(--text-2)', fontSize: '12px' }}>{e.email}</td>
                     <td style={{ color: 'var(--text-2)' }}>{e.phone}</td>
-                    <td style={{ color: 'var(--text-2)', fontSize: '12px' }}>{e.join_date}</td>
+                    <td style={{ color: 'var(--text-2)', fontSize: '12px' }}>{formatDate(e.join_date)}</td>
                     {canEdit && (
                       <td>
                         <div style={{ display: 'flex', gap: '2px' }}>
                           <button className="icon-btn" onClick={() => navigate(`/nhan-vien/${e.id}`)} title="Xem hồ sơ"><i className="fa-light fa-eye" /></button>
                           <button className="icon-btn" onClick={() => openEdit(e)} title="Sửa">✎</button>
-                          {profile?.role === 'admin' && <button className="icon-btn" style={{ color: 'var(--red)' }} onClick={() => del(e.id)} title="Xoá">✕</button>}
+                          {(profile?.role === 'admin' || profile?.role === 'ceo') && <button className="icon-btn" onClick={() => del(e.id)} title="Xoá">✕</button>}
                         </div>
                       </td>
                     )}
