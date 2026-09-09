@@ -77,6 +77,7 @@ export default function Layout() {
   useEffect(() => {
     const activeGroup = NAV.find(item => item.children?.some(c => c.path === location.pathname))
     if (activeGroup) setOpenGroups(prev => ({ ...prev, [activeGroup.id]: true }))
+    if (window.matchMedia('(max-width: 768px)').matches) setCollapsed(false)
   }, [location.pathname])
 
   function toggleGroup(id) {
@@ -98,6 +99,7 @@ export default function Layout() {
 
   return (
     <div className="app">
+      {collapsed && <div className="mobile-backdrop" onClick={() => setCollapsed(false)} />}
       <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">
@@ -177,18 +179,23 @@ export default function Layout() {
 
       <div className={`main${collapsed ? ' collapsed' : ''}`}>
         <header className="topbar">
-          <div className="breadcrumb">
-            {crumbs.map((c, i) => (
-              <span key={i} className={i === crumbs.length - 1 ? 'breadcrumb-current' : ''}>
-                {c}
-                {i < crumbs.length - 1 && <i className="fa-light fa-chevron-right breadcrumb-sep" />}
-              </span>
-            ))}
+          <div className="topbar-left">
+            <img src="/Optways-Logo.svg" alt="Optways" className="topbar-logo" />
+            <div className="breadcrumb">
+              {crumbs.map((c, i) => (
+                <span key={i} className={i === crumbs.length - 1 ? 'breadcrumb-current' : ''}>
+                  {c}
+                  {i < crumbs.length - 1 && <i className="fa-light fa-chevron-right breadcrumb-sep" />}
+                </span>
+              ))}
+            </div>
           </div>
           <div className="topbar-right">
-            <span style={{ fontSize: '12px', color: 'var(--text-2)' }}>
-              {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </span>
+        
+            <button className={`mobile-menu-toggle${collapsed ? ' open' : ''}`} onClick={() => setCollapsed(p => !p)}>
+              <span className="menu-bar menu-bar-1" />
+              <span className="menu-bar menu-bar-2" />
+            </button>
           </div>
         </header>
         <div className="content">

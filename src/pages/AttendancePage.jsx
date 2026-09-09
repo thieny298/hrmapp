@@ -9,6 +9,26 @@ const MONTHS = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6
 function getDaysInMonth(y, m) { return new Date(y, m + 1, 0).getDate() }
 function getFirstDay(y, m) { return new Date(y, m, 1).getDay() }
 
+function distanceMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000
+  const toRad = d => d * Math.PI / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function getLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) { resolve(null); return }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000 }
+    )
+  })
+}
+
 export default function AttendancePage() {
   const { profile } = useAuth()
   const now = new Date()
@@ -20,6 +40,13 @@ export default function AttendancePage() {
   const [checking, setChecking] = useState(false)
   const [selected, setSelected] = useState(null)
   const [latePopup, setLatePopup] = useState(null)
+  const [officeSettings, setOfficeSettings] = useState(null)
+  const [locationNote, setLocationNote] = useState(null)
+
+  useEffect(() => {
+    supabase.from('office_settings').select('*').eq('name', 'main').single()
+      .then(({ data }) => setOfficeSettings(data))
+  }, [])
 
   const today = now.toISOString().slice(0, 10)
 
@@ -39,6 +66,21 @@ export default function AttendancePage() {
 
   async function checkIn() {
     setChecking(true)
+    setLocationNote(null)
+
+    let note = null
+    if (officeSettings) {
+      const loc = await getLocation()
+      if (!loc) {
+        note = 'Không lấy được vị trí (thiết bị từ chối quyền định vị)'
+      } else {
+        const dist = distanceMeters(loc.lat, loc.lng, officeSettings.latitude, officeSettings.longitude)
+        if (dist > officeSettings.radius_meters) {
+          note = `Ngoài phạm vi văn phòng (cách ${Math.round(dist)}m, cho phép ${officeSettings.radius_meters}m)`
+        }
+      }
+    }
+
     const n = new Date()
     const totalMin = n.getHours() * 60 + n.getMinutes()
     const startMin = 8 * 60
@@ -59,9 +101,11 @@ export default function AttendancePage() {
       check_in: checkInTime,
       status,
       late_minutes: lateMinutes,
+      note,
     })
 
     if (!error) {
+      if (note) setLocationNote(note)
       if (status === 'late') setLatePopup(lateMinutes)
       fetchRecords()
     }
@@ -128,6 +172,12 @@ export default function AttendancePage() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {locationNote && (
+        <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
+          <i className="fa-light fa-location-dot" /> {locationNote} — đã ghi nhận chấm công, admin sẽ xem lại.
         </div>
       )}
 

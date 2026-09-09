@@ -10,8 +10,6 @@ export default function DashboardPage() {
   const [todayRecord, setTodayRecord] = useState(null)
   const [taskStats, setTaskStats] = useState({ running: 0, pending: 0, ended: 0, total: 0 })
   const [loading, setLoading] = useState(true)
-  const [checking, setChecking] = useState(false)
-  const [latePopup, setLatePopup] = useState(null)
 
   const today = new Date().toISOString().slice(0, 10)
   const hour = new Date().getHours()
@@ -24,7 +22,7 @@ export default function DashboardPage() {
     setLoading(true)
     const [attendRes, taskRes] = await Promise.all([
       supabase.from('attendance_logs').select('*').eq('user_id', profile.id).eq('date', today).single(),
-      supabase.from('tasks').select('status').eq('assigned_to', profile.id),
+      supabase.from('tasks').select('status').eq('assignee_id', profile.id),
     ])
     setTodayRecord(attendRes.data || null)
 
@@ -36,40 +34,6 @@ export default function DashboardPage() {
       total: tasks.length,
     })
     setLoading(false)
-  }
-
-  async function handleCheckIn() {
-    setChecking(true)
-    const now = new Date()
-    const hh = now.getHours()
-    const mm = now.getMinutes()
-    const totalMinutes = hh * 60 + mm
-    const startMinutes = 8 * 60 // 08:00
-
-    let checkInTime, status, lateMinutes = 0
-
-    if (totalMinutes <= startMinutes) {
-      checkInTime = '08:00'
-      status = 'present'
-    } else {
-      checkInTime = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`
-      status = 'late'
-      lateMinutes = totalMinutes - startMinutes
-    }
-
-    const { error } = await supabase.from('attendance_logs').insert({
-      user_id: profile.id,
-      date: today,
-      check_in: checkInTime,
-      status,
-      late_minutes: lateMinutes,
-    })
-
-    if (!error) {
-      if (status === 'late') setLatePopup(lateMinutes)
-      fetchData()
-    }
-    setChecking(false)
   }
 
   if (loading) return <div className="loading-screen" style={{ minHeight: '60vh' }}><div className="spinner" /></div>
@@ -84,18 +48,6 @@ export default function DashboardPage() {
   return (
     <div>
       <PageHeader title="Tổng quan" subtitle="Xem nhanh tình hình làm việc hôm nay" />
-
-      {/* Late popup */}
-      {latePopup && (
-        <div className="modal-overlay" onClick={() => setLatePopup(null)}>
-          <div className="modal" style={{ maxWidth: '360px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: '40px', marginBottom: '12px' }}>⏰</div>
-            <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>Bạn đã đi trễ {latePopup} phút</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '1.5rem' }}>Hãy cố gắng đúng giờ hơn vào ngày mai nhé!</div>
-            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setLatePopup(null)}>Đã hiểu</button>
-          </div>
-        </div>
-      )}
 
       {/* Greeting card */}
       <div className="card" style={{ marginBottom: '1rem', background: 'var(--primary)', border: 'none' }}>
@@ -115,12 +67,11 @@ export default function DashboardPage() {
           {!todayRecord ? (
             <button
               className="btn"
-              onClick={handleCheckIn}
-              disabled={checking}
+              onClick={() => navigate('/cham-cong')}
               style={{ background: '#fff', color: 'var(--primary)', border: 'none', fontWeight: '600', padding: '10px 20px' }}
             >
               <i className="fa-light fa-right-to-bracket" />
-              {checking ? 'Đang xử lý...' : 'Chấm công vào'}
+              Chấm công ngay
             </button>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.15)', padding: '8px 14px', borderRadius: 'var(--radius)' }}>

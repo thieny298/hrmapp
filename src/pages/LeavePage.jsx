@@ -282,6 +282,9 @@ export default function LeavePage({ initialStep = 0 }) {
   const { profile } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState(initialStep) // 0: danh sách, 1: điền đơn, 2: xem lại, 3: hoàn thành
+
+  useEffect(() => { setStep(initialStep) }, [initialStep])
+
   const [form, setForm] = useState(EMPTY_FORM)
   const [days, setDays] = useState([])
   const [showDayModal, setShowDayModal] = useState(false)
@@ -344,7 +347,7 @@ export default function LeavePage({ initialStep = 0 }) {
   }
 
   async function fetchMembers() {
-    const { data } = await supabase.from('user_profiles').select('id,full_name,email').order('full_name')
+    const { data } = await supabase.rpc('department_colleagues')
     setMembers(data || [])
   }
 
@@ -426,7 +429,7 @@ export default function LeavePage({ initialStep = 0 }) {
   function backToList() {
     setForm(EMPTY_FORM)
     setDays([])
-    setStep(0)
+    navigate('/don-cua-toi')
   }
 
   if (loading) return <div className="loading-screen" style={{ minHeight: '60vh' }}><div className="spinner" /></div>
@@ -437,9 +440,15 @@ export default function LeavePage({ initialStep = 0 }) {
         title={initialStep === 1 ? 'Nghỉ phép' : 'Đơn của tôi'}
         subtitle={initialStep === 1 ? 'Gửi đơn nghỉ phép' : 'Danh sách đơn nghỉ phép đã gửi'}
         action={
-          <button className="btn btn-primary" onClick={() => navigate(initialStep === 1 ? '/don-cua-toi' : '/nghi-phep')}>
-            <i className="fa-light fa-file-lines" /> {initialStep === 1 ? 'Đơn của tôi' : 'Nghỉ phép'}
-          </button>
+          step === 0 ? (
+            <button className="btn btn-primary" onClick={() => { setError(''); setAttempted(false); navigate('/nghi-phep') }} disabled={remainLeave <= 0}>
+              <i className="fal fa-file-plus" />Tạo đơn nghỉ
+            </button>
+          ) : (
+            <button className="btn btn-primary" onClick={backToList}>
+              <i className="fal fa-list" />Danh sách đơn
+            </button>
+          )
         }
       />
 
@@ -464,11 +473,8 @@ export default function LeavePage({ initialStep = 0 }) {
 
       {step === 0 && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <div style={{ marginBottom: '1rem' }}>
             <span style={{ fontSize: '13px', color: 'var(--text-2)' }}>{leaves.length} đơn nghỉ phép</span>
-            <button className="btn btn-primary" onClick={() => { setStep(1); setError(''); setAttempted(false) }} disabled={remainLeave <= 0}>
-              <i className="fa-solid fa-plus" />Tạo đơn nghỉ
-            </button>
           </div>
           {remainLeave <= 0 && (
             <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
@@ -635,16 +641,17 @@ export default function LeavePage({ initialStep = 0 }) {
 
               {error && <div className="alert alert-error" style={{ marginTop: 4 }}><i className="fa-solid fa-circle-exclamation" />{error}</div>}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '1.5rem' }}>
-                <button className="btn" onClick={() => setStep(0)}>Huỷ</button>
+              <div className="form-actions">
+                <button className="btn" onClick={backToList}>Huỷ</button>
                 <button className="btn btn-primary" onClick={goReview}>Tiếp tục <i className="fa-solid fa-arrow-right" /></button>
               </div>
             </div>
           )}
 
           {step === 2 && (
-            <div className="card card-narrow">
-              <div className="review-block">
+            <div className="card">
+              <div className="card-narrow">
+                <div className="review-block">
                 <div className="review-title">Thông tin nhân viên</div>
                 <div className="review-grid">
                   <div>
@@ -698,12 +705,13 @@ export default function LeavePage({ initialStep = 0 }) {
               </div>
 
               {error && <div className="alert alert-error" style={{ marginTop: '1rem' }}>{error}</div>}
-              <div className="review-actions">
+              <div className="review-actions form-actions">
                 <button className="btn" onClick={() => setStep(1)}>Quay lại</button>
                 <button className="btn btn-primary" onClick={submit} disabled={submitting}>
                   <i className="fa-solid fa-paper-plane" />
                   {submitting ? 'Đang gửi...' : 'Gửi đơn'}
                 </button>
+              </div>
               </div>
             </div>
           )}
