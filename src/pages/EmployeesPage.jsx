@@ -27,6 +27,8 @@ export default function EmployeesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState(null)
+  const [creatingAccounts, setCreatingAccounts] = useState(false)
+  const [accountResults, setAccountResults] = useState(null)
   const canEdit = ['admin', 'ceo', 'manager'].includes(profile?.role)
 
   useEffect(() => { fetchEmployees() }, [])
@@ -83,6 +85,20 @@ export default function EmployeesPage() {
     fetchEmployees()
   }
 
+  async function handleCreateAccounts() {
+    setCreatingAccounts(true)
+    setAccountResults(null)
+    const { data, error } = await supabase.functions.invoke('manage-employee-account', {
+      body: { action: 'bulk-create' }
+    })
+    setCreatingAccounts(false)
+    if (error) {
+      setAccountResults([{ employee_code: '-', success: false, error: error.message }])
+      return
+    }
+    setAccountResults(data.results)
+  }
+
   const F = ({ label, k, type = 'text', opts, ta }) => (
     <div className="form-group">
       <label className="form-label">{label}</label>
@@ -123,10 +139,23 @@ export default function EmployeesPage() {
             <button className="btn" onClick={() => setModal('import')}>
               <i className="fa-light fa-file-arrow-up" /> Import
             </button>
+            <button className="btn" onClick={handleCreateAccounts} disabled={creatingAccounts}>
+              {creatingAccounts ? 'Đang tạo...' : 'Tạo tài khoản'}
+            </button>
             <button className="btn btn-primary" onClick={() => navigate('/nhan-vien/them-moi')}>+ Thêm nhân viên</button>
           </div>
         )}
       </div>
+
+      {accountResults && (
+        <div className="card" style={{ padding: '12px 16px', marginBottom: '1rem' }}>
+          {accountResults.map(r => (
+            <div key={r.employee_code} style={{ fontSize: '13px', color: r.success ? '#16a34a' : '#dc2626' }}>
+              {r.employee_code}: {r.success ? `OK (${r.email})` : `Lỗi - ${r.error}`}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card" style={{ padding: 0 }}>
         <div className="table-wrap">

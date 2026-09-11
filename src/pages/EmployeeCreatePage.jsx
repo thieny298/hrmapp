@@ -107,10 +107,23 @@ export default function EmployeeCreatePage() {
 
     setSaving(true); setError('')
 
+    const { data: existing } = await supabase
+      .from('employee_profiles')
+      .select('id')
+      .eq('email', form.email.trim())
+      .maybeSingle()
+
+    if (existing) {
+      setSaving(false)
+      setActiveTab('personal')
+      setError('Email này đã được dùng cho một nhân viên khác')
+      return
+    }
+
     const [freshCode] = await nextEmployeeCodes(1)
 
     const DATE_FIELDS = ['dob', 'id_issued_date', 'join_date', 'probation_end_date', 'contract_end_date']
-    const payload = { ...form, employee_code: freshCode }
+    const payload = { ...form, employee_code: freshCode, email: form.email.trim() }
     DATE_FIELDS.forEach(f => { if (!payload[f]) payload[f] = null })
     if (!payload.manager_id) payload.manager_id = null
     payload.basic_salary = Number(payload.basic_salary) || 0

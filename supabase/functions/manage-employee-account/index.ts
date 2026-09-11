@@ -11,13 +11,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Client admin (service role) — được Supabase tự động cấp sẵn 2 biến môi trường này, không cần tự khai báo
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Xác định người gọi function là ai, dựa vào JWT gửi kèm request
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Thiếu Authorization header' }), { status: 401, headers: corsHeaders })
@@ -32,7 +30,6 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Không xác thực được người gọi' }), { status: 401, headers: corsHeaders })
     }
 
-    // Chỉ admin mới được dùng function này
     const { data: callerProfile } = await supabaseAdmin
       .from('user_profiles')
       .select('role')
@@ -45,7 +42,6 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const { action } = body
 
-    // ── Mời tài khoản mới ─────────────────────────────────────────────
     if (action === 'invite') {
       const { email, full_name, role } = body
       if (!email || !full_name) {
@@ -60,10 +56,9 @@ Deno.serve(async (req) => {
       }
 
       await supabaseAdmin.from('user_profiles').upsert({
-        id: invited.user.id, email, full_name, role: role || 'employee',
+        id: invited.user.id, email, full_name, role: role || 'staff',
       })
 
-      // Tự liên kết vào hồ sơ nhân viên đã có sẵn theo email trùng khớp (nếu có)
       await supabaseAdmin.from('employee_profiles')
         .update({ user_id: invited.user.id })
         .eq('email', email)
@@ -71,7 +66,6 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ user_id: invited.user.id }), { status: 200, headers: corsHeaders })
     }
 
-    // ── Admin đặt mật khẩu tạm (khi nhân viên không truy cập được email) ──
     if (action === 'set-temp-password') {
       const { user_id, password } = body
       if (!user_id || !password || password.length < 6) {
@@ -82,6 +76,85 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: updErr.message }), { status: 400, headers: corsHeaders })
       }
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders })
+    }
+
+    if (action === 'bulk-create') {
+      const { data: employees, error: fetchErr } = await supabaseAdmin
+        .from('employee_profiles')
+        .select('id, employee_code, email, full_name')
+        .is('user_id', null)
+
+      if (fetchErr) {
+        return new Response(JSON.stringify({ error: fetchErr.message }), { status: 500, headers: corsHeaders })
+      }
+
+      const { data: userList, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+      if (listErr) {
+        return new Response(JSON.stringify({ error: listErr.message }), { status: 500, headers: corsHeaders })
+      }
+
+      const results = []
+
+      for (const emp of employees) {
+        const authEmail = emp.email && emp.email.trim() !== ''
+          ? emp.email.trim()
+          : `${emp.employee_code}@internal.optways.net`
+
+        let userId = null
+        const existingAuthUser = userList.users.find(u => u.email === authEmail)
+
+        if (existingAuthUser) {
+          userId = existingAuthUser.id
+          if (userId !== caller.id) {
+            await supabaseAdmin.auth.admin.updateUserById(userId, {
+              password: 'Optways@123',
+              email_confirm: true,
+            })
+          }
+        } else {
+          const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+            email: authEmail,
+            password: 'Optways@123',
+            email_confirm: true,
+            user_metadata: { employee_code: emp.employee_code, role: 'staff' },
+          })
+          if (createErr) {
+            results.push({ employee_code: emp.employee_code, success: false, error: createErr.message })
+            continue
+          }
+          userId = created.user.id
+        }
+
+        const { data: existingProfile } = await supabaseAdmin
+          .from('user_profiles')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle()
+
+        if (!existingProfile) {
+          const { error: insertErr } = await supabaseAdmin.from('user_profiles').insert({
+            id: userId, email: authEmail, full_name: emp.full_name, role: 'staff',
+          })
+          if (insertErr) {
+            results.push({ employee_code: emp.employee_code, success: false, error: insertErr.message })
+            continue
+          }
+        }
+
+        const { error: linkErr } = await supabaseAdmin
+          .from('employee_profiles')
+          .update({ user_id: userId })
+          .eq('id', emp.id)
+
+        if (linkErr) {
+          results.push({ employee_code: emp.employee_code, success: false, error: linkErr.message })
+          continue
+        }
+
+        results.push({ employee_code: emp.employee_code, success: true, email: authEmail })
+      }
+
+      return new Response(JSON.stringify({ results }), { status: 200, headers: corsHeaders })
     }
 
     return new Response(JSON.stringify({ error: 'action không hợp lệ' }), { status: 400, headers: corsHeaders })
