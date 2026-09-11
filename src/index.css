@@ -152,7 +152,7 @@ body {  font: 400 16px / 1.4 'Google Sans Flex'; background: var(--bg); color: v
 .review-field-value { font-size: 14px; font-weight: 600; color: var(--text); }
 .review-day-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background:#f6fffb; border-radius: var(--radius); font-size: 13px; font-weight:500; }
 .review-day-row .review-day-type { color: var(--primary); font-weight: 600; }
-.review-actions { display: flex; justify-content: center; gap: 10px; margin: 2rem 0; }
+.review-actions.form-actions { display: flex; justify-content: center; gap: 10px; margin: 2rem 0; }
 .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
 .card-title { font-size: 14px; font-weight: 600; }
 
@@ -222,7 +222,7 @@ input:-webkit-autofill:active {
       display: flex;
     gap: 1.25rem;
     justify-content: flex-end;
-    margin:0;
+    margin: 1.5rem 0 0;
 }
 /* SECTION COLLAPSIBLE */
 .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 12px; overflow: hidden; }
