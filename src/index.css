@@ -559,4 +559,5 @@ input:-webkit-autofill:active {
 @media (min-width: 769px) {
   .mobile-menu-toggle { display: none; }
   .topbar-logo { display: none; }
+  .tabbar-btn{min-width:135px;}
 }

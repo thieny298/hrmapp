@@ -140,7 +140,7 @@ export default function Layout() {
       {collapsed && <div className="mobile-backdrop" onClick={() => setCollapsed(false)} />}
       <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-logo">
+          <div className="sidebar-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
           <img src="/Optways-Logo.svg" className="logo-text" alt="Optways" />
            <img src="/public/Optways-Logo-icon.png" className="logo-text-toggle" alt="Optways" />
           </div>
@@ -222,7 +222,7 @@ export default function Layout() {
       <div className={`main${collapsed ? ' collapsed' : ''}`}>
         <header className="topbar">
           <div className="topbar-left">
-            <img src="/Optways-Logo.svg" alt="Optways" className="topbar-logo" />
+            <img src="/Optways-Logo.svg" alt="Optways" className="topbar-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} />
             <div className="breadcrumb">
               {crumbs.map((c, i) => (
                 <span key={i} className={i === crumbs.length - 1 ? 'breadcrumb-current' : ''}>

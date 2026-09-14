@@ -18,8 +18,8 @@ function accountEmailHtml(fullName, loginEmail, password) {
     <head><meta charset="utf-8"/></head>
     <body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',sans-serif;">
       <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.07);border:1px solid #e5e7eb;">
-        <div style="background:#fafffa;padding:20px 15px;">
-          <img src="${LOGO_URL}" alt="Optways" style="height:26px;display:block;" />
+        <div style="background:#fafffa;padding:20px 32px;">
+          <img src="${LOGO_URL}" alt="Optways" style="height:37px;display:block;" />
         </div>
         <div style="padding:28px 32px;font-size:14px;color:#3c4257;line-height:1.7;">
           <p>Chào mừng <strong>${fullName}</strong> đến với Optways HR,</p>
