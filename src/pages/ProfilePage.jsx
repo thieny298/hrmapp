@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DateInput from '../components/DateInput.jsx'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import Modal from '../components/Modal.jsx'
 
 const INIT_PROFILE = {
   full_name: '', employee_code: '', status: 'active', position: '', department: '',
@@ -31,6 +32,21 @@ const EMERGENCY_RELATIONS = [
   ['', '— Chọn —'], ['spouse', 'Vợ / Chồng'], ['parent', 'Bố / Mẹ'],
   ['sibling', 'Anh / Chị / Em'], ['child', 'Con'], ['friend', 'Bạn bè'], ['other', 'Khác'],
 ]
+
+export const FIELD_LABELS = {
+  full_name: 'Họ tên', position: 'Chức vụ', department: 'Phòng ban', status: 'Trạng thái',
+  email: 'Email', phone: 'Điện thoại', education_level: 'Học vấn', gender: 'Giới tính',
+  dob: 'Ngày sinh', hometown: 'Nguyên quán', join_date: 'Ngày nhận việc',
+  marital_status: 'Hôn nhân', account_name: 'Tên tài khoản',
+  ethnicity: 'Dân tộc', religion: 'Tôn giáo', current_address: 'Nơi ở hiện nay',
+  tax_code: 'Mã số thuế cá nhân', bank_account: 'Số tài khoản', bank_name: 'Ngân hàng',
+  bank_branch: 'Chi nhánh', bank_owner: 'Tên chủ TK', notes: 'Ghi chú',
+  id_number: 'Số CCCD/CMND', id_issued_date: 'Ngày cấp CCCD/CMND', id_issued_place: 'Nơi cấp CCCD/CMND',
+  emergency_name: 'Người liên hệ khẩn cấp', emergency_relation: 'Quan hệ',
+  emergency_phone: 'SĐT liên hệ khẩn cấp', emergency_address: 'Địa chỉ liên hệ khẩn cấp',
+  manager_id: 'Quản lý trực tiếp', contract_type: 'Loại hợp đồng',
+  basic_salary: 'Lương cơ bản', insurance_code: 'Mã số BHXH', insurance_place: 'Nơi đăng ký KCB ban đầu',
+}
 
 const TABS = [
   { key: 'general', label: 'Thông tin chung', icon: 'fa-id-badge' },
@@ -95,6 +111,13 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('general')
   const [managers, setManagers] = useState([])
 
+  const [showRequestModal, setShowRequestModal] = useState(false)
+  const [requestDraft, setRequestDraft] = useState(null)
+  const [requestSaving, setRequestSaving] = useState(false)
+  const [requestError, setRequestError] = useState('')
+  const [requestSuccess, setRequestSuccess] = useState(false)
+  const sectionRefs = { general: useRef(null), personal: useRef(null), position: useRef(null), salary: useRef(null) }
+
   useEffect(() => { fetchProfile(); fetchManagers() }, [viewingOtherId, authProfile?.id])
 
   async function fetchProfile() {
@@ -137,6 +160,46 @@ export default function ProfilePage() {
 
   function isEditing(tab) { return editingTab === tab }
 
+  function openRequestModal() {
+    setRequestDraft({ ...form })
+    setRequestError('')
+    setRequestSuccess(false)
+    setShowRequestModal(true)
+    setTimeout(() => sectionRefs[activeTab]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150)
+  }
+
+  function closeRequestModal() {
+    setShowRequestModal(false)
+    setRequestDraft(null)
+  }
+
+  async function submitRequest() {
+    if (!requestDraft) return
+    const changes = []
+    Object.keys(FIELD_LABELS).forEach(key => {
+      const oldVal = form[key] ?? ''
+      const newVal = requestDraft[key] ?? ''
+      if (String(oldVal) !== String(newVal)) {
+        changes.push({ field: key, label: FIELD_LABELS[key], old: oldVal, new: newVal })
+      }
+    })
+
+    if (changes.length === 0) {
+      setRequestError('Bạn chưa thay đổi thông tin nào so với hiện tại')
+      return
+    }
+
+    setRequestSaving(true); setRequestError('')
+    const { error } = await supabase.from('profile_edit_requests').insert({
+      employee_id: form.id,
+      requested_by: authProfile.id,
+      changes,
+    })
+    setRequestSaving(false)
+    if (error) { setRequestError(error.message); return }
+    setRequestSuccess(true)
+  }
+
   if (loading) return <div className="loading-screen" style={{ minHeight: '60vh' }}><div className="spinner" /></div>
 
   return (
@@ -163,6 +226,11 @@ export default function ProfilePage() {
             ) : (
               <button className="btn" onClick={() => startEdit(activeTab)}>Chỉnh sửa</button>
             )}
+          </div>
+        )}
+        {!isAdmin && !viewingOtherId && !COMING_SOON_TABS.includes(activeTab) && (
+          <div className="flex gap-8">
+            <button className="btn btn-primary" onClick={openRequestModal}>Yêu cầu chỉnh sửa thông tin</button>
           </div>
         )}
       </div>
@@ -477,6 +545,80 @@ export default function ProfilePage() {
         <div className="dashboard-card">
           <div className="empty-hint">Tính năng đang được phát triển, sẽ có trong bản cập nhật sau.</div>
         </div>
+      )}
+
+      {showRequestModal && requestDraft && (
+        <Modal
+          title="Yêu cầu chỉnh sửa thông tin"
+          onClose={closeRequestModal}
+          footer={!requestSuccess ? [
+            <button key="c" className="btn" onClick={closeRequestModal}>Hủy</button>,
+            <button key="s" className="btn btn-primary" onClick={submitRequest} disabled={requestSaving}>{requestSaving ? 'Đang gửi...' : 'Gửi yêu cầu'}</button>
+          ] : [
+            <button key="c" className="btn btn-primary" onClick={closeRequestModal}>Đóng</button>
+          ]}
+        >
+          {requestError && <div className="alert alert-error">{requestError}</div>}
+          {requestSuccess && <div className="alert alert-success">Đã gửi yêu cầu! Admin sẽ xem xét và phản hồi sớm.</div>}
+
+          {!requestSuccess && (
+            <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <div ref={sectionRefs.general}>
+                <div className="section-title-plain">Thông tin chung</div>
+                <div className="form-grid">
+                  <EField label="Họ tên" k="full_name" draft={requestDraft} setDraft={setRequestDraft} wide />
+                  <EField label="Email" k="email" type="email" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Điện thoại" k="phone" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Học vấn" k="education_level" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Giới tính" k="gender" opts={GENDERS} draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Ngày sinh" k="dob" type="date" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Nguyên quán" k="hometown" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Hôn nhân" k="marital_status" opts={MARITAL} draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Tên tài khoản" k="account_name" draft={requestDraft} setDraft={setRequestDraft} />
+                </div>
+              </div>
+
+              <div ref={sectionRefs.personal} style={{ marginTop: '1.5rem' }}>
+                <div className="section-title-plain">Lý lịch</div>
+                <div className="form-grid">
+                  <EField label="Dân tộc" k="ethnicity" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Tôn giáo" k="religion" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Nơi ở hiện nay" k="current_address" draft={requestDraft} setDraft={setRequestDraft} wide />
+                  <EField label="Số CCCD/CMND" k="id_number" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Ngày cấp CCCD/CMND" k="id_issued_date" type="date" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Nơi cấp CCCD/CMND" k="id_issued_place" draft={requestDraft} setDraft={setRequestDraft} />
+                </div>
+                <div className="section-title-plain" style={{ marginTop: '1rem' }}>Liên hệ khẩn cấp</div>
+                <div className="form-grid">
+                  <EField label="Họ tên" k="emergency_name" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Quan hệ" k="emergency_relation" opts={EMERGENCY_RELATIONS} draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Số điện thoại" k="emergency_phone" type="tel" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Địa chỉ" k="emergency_address" draft={requestDraft} setDraft={setRequestDraft} wide />
+                </div>
+              </div>
+
+              <div ref={sectionRefs.position} style={{ marginTop: '1.5rem' }}>
+                <div className="section-title-plain">Chức danh</div>
+                <div className="form-grid">
+                  <EField label="Phòng ban" k="department" opts={[['', '— Chọn —'], ...DEPTS.map(d => [d, d])]} draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Chức vụ" k="position" draft={requestDraft} setDraft={setRequestDraft} />
+                </div>
+              </div>
+
+              <div ref={sectionRefs.salary} style={{ marginTop: '1.5rem' }}>
+                <div className="section-title-plain">Lương & Bảo hiểm</div>
+                <div className="form-grid">
+                  <EField label="Ngân hàng" k="bank_name" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Số tài khoản" k="bank_account" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Chi nhánh" k="bank_branch" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Mã số thuế TNCN" k="tax_code" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Mã số BHXH" k="insurance_code" draft={requestDraft} setDraft={setRequestDraft} />
+                  <EField label="Nơi đăng ký KCB ban đầu" k="insurance_place" draft={requestDraft} setDraft={setRequestDraft} wide />
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal>
       )}
     </div>
   )

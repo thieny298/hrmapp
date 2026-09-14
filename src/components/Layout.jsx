@@ -28,6 +28,7 @@ const NAV = [
   { path: '/customers', label: 'Khách hàng', icon: 'fa-light fa-handshake', module: 'customers' },
   { path: '/reports', label: 'Báo cáo', icon: 'fa-light fa-chart-line', module: 'reports' },
   { path: '/users', label: 'Người dùng', icon: 'fa-light fa-gear', module: 'users' },
+  { path: '/yeu-cau-chinh-sua', label: 'Yêu cầu chỉnh sửa thông tin', icon: 'fa-light fa-pen-to-square', adminOnly: true },
   { path: '/phan-quyen', label: 'Phân quyền', icon: 'fa-light fa-shield-halved', superOnly: true },
 ]
 
@@ -45,6 +46,7 @@ const PAGE_TITLES = {
   '/customers/:id': 'Chi tiết khách hàng',
   '/reports': 'Báo cáo & Thống kê',
   '/users': 'Quản lý người dùng',
+  '/yeu-cau-chinh-sua': 'Yêu cầu chỉnh sửa thông tin',
   '/duyet-nghi-phep': 'Duyệt nghỉ phép',
   '/phan-quyen': 'Phân quyền',
 }
@@ -84,12 +86,12 @@ export default function Layout() {
 
   useEffect(() => {
     const activeGroup = NAV.find(item => item.children?.some(c => c.path === location.pathname))
-    if (activeGroup) setOpenGroups(prev => ({ ...prev, [activeGroup.id]: true }))
+    setOpenGroups(activeGroup ? { [activeGroup.id]: true } : {})
     if (window.matchMedia('(max-width: 768px)').matches) setCollapsed(false)
   }, [location.pathname])
 
   function toggleGroup(id) {
-    setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }))
+    setOpenGroups(prev => (prev[id] ? {} : { [id]: true }))
   }
 
   function isGroupActive(children) {
@@ -98,6 +100,7 @@ export default function Layout() {
 
   function canSee(item) {
     if (item.superOnly) return isSuper()
+    if (item.adminOnly) return ['admin', 'ceo'].includes(role)
     if (item.alwaysVisible) return true
     if (!item.module) return true
     return item.action === 'edit' ? canEdit(item.module) : canView(item.module)

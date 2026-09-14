@@ -16,6 +16,7 @@ import LeaveApprovalPage from './pages/LeaveApprovalPage.jsx'
 import EmployeesPage from './pages/EmployeesPage.jsx'
 import EmployeeCreatePage from './pages/EmployeeCreatePage.jsx'
 import PermissionsPage from './pages/PermissionsPage.jsx'
+import EditRequestsPage from './pages/EditRequestsPage.jsx'
 
 function ProtectedRoute({ children, allowedRoles, module, action = 'view' }) {
   const { user, profile, loading, isSuper, canView, canEdit } = useAuth()
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="reports" element={<ProtectedRoute module="reports"><ReportsPage /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute module="users"><UsersPage /></ProtectedRoute>} />
+        <Route path="yeu-cau-chinh-sua" element={<ProtectedRoute allowedRoles={['admin', 'ceo']}><EditRequestsPage /></ProtectedRoute>} />
         <Route path="duyet-nghi-phep" element={<ProtectedRoute module="leave" action="edit"><LeaveApprovalPage /></ProtectedRoute>} />
         <Route path="nhan-vien" element={<ProtectedRoute module="employees"><EmployeesPage /></ProtectedRoute>} />
         <Route path="nhan-vien/them-moi" element={<ProtectedRoute module="employees" action="edit"><EmployeeCreatePage /></ProtectedRoute>} />
