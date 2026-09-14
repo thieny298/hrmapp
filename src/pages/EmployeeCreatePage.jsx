@@ -78,6 +78,9 @@ export default function EmployeeCreatePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const currentIndex = TABS.findIndex(t => t.key === activeTab)
+  const isLastTab = currentIndex === TABS.length - 1
+
   useEffect(() => {
     fetchManagers()
     nextEmployeeCodes(1).then(([code]) => setForm(p => ({ ...p, employee_code: code })))
@@ -90,19 +93,54 @@ export default function EmployeeCreatePage() {
 
   const managerOpts = [['', '— Không có --'], ...managers.map(m => [m.id, m.full_name])]
 
-  function validate() {
-    if (!form.full_name?.trim()) { setActiveTab('personal'); return 'Vui lòng nhập họ tên' }
-    if (!form.email?.trim()) { setActiveTab('personal'); return 'Vui lòng nhập email' }
-    if (!form.department) { setActiveTab('organization'); return 'Vui lòng chọn phòng ban' }
-    if (!form.position?.trim()) { setActiveTab('organization'); return 'Vui lòng nhập chức danh' }
-    if (!form.join_date) { setActiveTab('contract'); return 'Vui lòng chọn ngày vào làm' }
-    if (!form.emergency_name?.trim()) { setActiveTab('emergency'); return 'Vui lòng nhập họ tên người liên hệ khẩn cấp' }
-    if (!form.emergency_phone?.trim()) { setActiveTab('emergency'); return 'Vui lòng nhập số điện thoại liên hệ khẩn cấp' }
+  function validateTab(key) {
+    if (key === 'personal') {
+      if (!form.full_name?.trim()) return 'Vui lòng nhập họ tên'
+      if (!form.email?.trim()) return 'Vui lòng nhập email'
+    }
+    if (key === 'organization') {
+      if (!form.department) return 'Vui lòng chọn phòng ban'
+      if (!form.position?.trim()) return 'Vui lòng nhập chức danh'
+    }
+    if (key === 'contract') {
+      if (!form.join_date) return 'Vui lòng chọn ngày vào làm'
+    }
+    if (key === 'emergency') {
+      if (!form.emergency_name?.trim()) return 'Vui lòng nhập họ tên người liên hệ khẩn cấp'
+      if (!form.emergency_phone?.trim()) return 'Vui lòng nhập số điện thoại liên hệ khẩn cấp'
+    }
     return ''
   }
 
+  function validateAll() {
+    for (const t of TABS) {
+      const msg = validateTab(t.key)
+      if (msg) { setActiveTab(t.key); return msg }
+    }
+    return ''
+  }
+
+  function handleNext() {
+    const msg = validateTab(activeTab)
+    if (msg) { setError(msg); return }
+    setError('')
+    setActiveTab(TABS[currentIndex + 1].key)
+  }
+
+  function handleBack() {
+    setError('')
+    setActiveTab(TABS[currentIndex - 1].key)
+  }
+
+  function goToTab(key) {
+    const targetIndex = TABS.findIndex(t => t.key === key)
+    if (targetIndex > currentIndex) return
+    setError('')
+    setActiveTab(key)
+  }
+
   async function save() {
-    const msg = validate()
+    const msg = validateAll()
     if (msg) { setError(msg); return }
 
     setSaving(true); setError('')
@@ -151,22 +189,30 @@ export default function EmployeeCreatePage() {
         </div>
         <div className="flex gap-8">
           <button className="btn btn-ghost" onClick={() => navigate('/nhan-vien')}>Hủy</button>
-          <button className="btn btn-primary" onClick={save} disabled={saving}>
-            {saving ? 'Đang lưu...' : 'Tạo nhân viên'}
-          </button>
+          {currentIndex > 0 && (
+            <button className="btn" onClick={handleBack}>Quay lại</button>
+          )}
+          {!isLastTab && (
+            <button className="btn btn-primary" onClick={handleNext}>Tiếp theo</button>
+          )}
+          {isLastTab && (
+            <button className="btn btn-primary" onClick={save} disabled={saving}>
+              {saving ? 'Đang lưu...' : 'Tạo nhân viên'}
+            </button>
+          )}
         </div>
       </div>
 
       {error && <div className="alert alert-error"><i className="fa-light fa-circle-exclamation" />{error}</div>}
 
       <div className="tabbar">
-        {TABS.map(t => (
+        {TABS.map((t, i) => (
           <button
             key={t.key}
-            className={`tabbar-btn${activeTab === t.key ? ' active' : ''}`}
-            onClick={() => setActiveTab(t.key)}
+            className={`tabbar-btn${activeTab === t.key ? ' active' : ''}${i < currentIndex ? ' done' : ''}${i > currentIndex ? ' disabled' : ''}`}
+            onClick={() => goToTab(t.key)}
           >
-            <i className={`fa-light ${t.icon}`} />
+            <i className={`fa-light ${i < currentIndex ? 'fa-circle-check' : t.icon}`} />
             {t.label}
           </button>
         ))}
@@ -315,9 +361,17 @@ export default function EmployeeCreatePage() {
 
       <div className="form-footer">
         <button className="btn btn-ghost" onClick={() => navigate('/nhan-vien')}>Hủy bỏ</button>
-        <button className="btn btn-primary" onClick={save} disabled={saving}>
-          {saving ? 'Đang lưu...' : 'Tạo nhân viên'}
-        </button>
+        {currentIndex > 0 && (
+          <button className="btn" onClick={handleBack}>Quay lại</button>
+        )}
+        {!isLastTab && (
+          <button className="btn btn-primary" onClick={handleNext}>Tiếp theo</button>
+        )}
+        {isLastTab && (
+          <button className="btn btn-primary" onClick={save} disabled={saving}>
+            {saving ? 'Đang lưu...' : 'Tạo nhân viên'}
+          </button>
+        )}
       </div>
     </div>
   )

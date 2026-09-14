@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase'
 import Modal from '../components/Modal.jsx'
 import PageHeader from '../components/PageHeader.jsx'
 
-const ROLES = { admin: 'Admin', manager: 'Manager', employee: 'Nhân viên' }
-const ROLE_BADGE = { admin: 'role-admin', manager: 'role-manager', employee: 'role-employee' }
+const ROLES = { admin: 'Admin', ceo: 'CEO', manager: 'Manager', staff: 'Nhân viên' }
+const ROLE_BADGE = { admin: 'role-admin', ceo: 'role-ceo', manager: 'role-manager', staff: 'role-staff' }
 
 function initials(name = '') { return name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase() }
 
@@ -12,7 +12,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
-  const [form, setForm] = useState({ email: '', full_name: '', role: 'employee' })
+  const [form, setForm] = useState({ email: '', full_name: '', role: 'staff' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -27,7 +27,7 @@ export default function UsersPage() {
   }
 
   function openAdd() {
-    setForm({ email: '', full_name: '', role: 'employee' })
+    setForm({ email: '', full_name: '', role: 'staff' })
     setError(''); setSuccess(''); setModal('add')
   }
 
@@ -82,7 +82,19 @@ export default function UsersPage() {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <div style={{ fontSize: '13px', color: 'var(--text-2)' }}>{users.length} tài khoản</div>
-        <button className="btn btn-primary" onClick={openAdd}>+ Tạo tài khoản</button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn" onClick={async () => {
+            const email = prompt('Gửi thử email tới:', 'thieny298@gmail.com')
+            if (!email) return
+            const { data, error: fnErr } = await supabase.functions.invoke('manage-employee-account', {
+              body: { action: 'test-email', email, full_name: 'Bon' }
+            })
+            if (fnErr) { alert('Lỗi: ' + fnErr.message); return }
+            if (data?.error) { alert('Lỗi: ' + data.error); return }
+            alert(data.sent ? 'Đã gửi thành công!' : 'Gửi thất bại: ' + data.reason)
+          }}>Gửi thử email</button>
+          <button className="btn btn-primary" onClick={openAdd}>+ Tạo tài khoản</button>
+        </div>
       </div>
 
       <div className="card" style={{ padding: 0 }}>

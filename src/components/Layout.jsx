@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { supabase } from '../lib/supabase'
+import Modal from './Modal.jsx'
 
 const NAV = [
   { path: '/', label: 'Dashboard', icon: 'fa-light fa-grid-2', module: 'dashboard' },
@@ -73,6 +75,12 @@ export default function Layout() {
   const role = profile?.role || 'staff'
   const [collapsed, setCollapsed] = useState(false)
   const [openGroups, setOpenGroups] = useState({})
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [pwError, setPwError] = useState('')
+  const [pwSuccess, setPwSuccess] = useState(false)
+  const [pwSaving, setPwSaving] = useState(false)
 
   useEffect(() => {
     const activeGroup = NAV.find(item => item.children?.some(c => c.path === location.pathname))
@@ -93,6 +101,33 @@ export default function Layout() {
     if (item.alwaysVisible) return true
     if (!item.module) return true
     return item.action === 'edit' ? canEdit(item.module) : canView(item.module)
+  }
+
+  function openPasswordModal() {
+    setNewPassword('')
+    setConfirmPassword('')
+    setPwError('')
+    setPwSuccess(false)
+    setShowPasswordModal(true)
+  }
+
+  function translatePwError(msg) {
+    if (msg.includes('should be different from the old password')) return 'Mật khẩu mới phải khác mật khẩu hiện tại'
+    if (msg.includes('at least 6 characters')) return 'Mật khẩu phải có ít nhất 6 ký tự'
+    if (msg.includes('Auth session missing')) return 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại'
+    return 'Có lỗi xảy ra, vui lòng thử lại'
+  }
+
+  async function handleChangePassword() {
+    if (!newPassword || newPassword.length < 6) { setPwError('Mật khẩu phải có ít nhất 6 ký tự'); return }
+    if (newPassword !== confirmPassword) { setPwError('Mật khẩu nhập lại không khớp'); return }
+    setPwSaving(true); setPwError('')
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    setPwSaving(false)
+    if (error) { setPwError(translatePwError(error.message)); return }
+    setPwSuccess(true)
+    setNewPassword('')
+    setConfirmPassword('')
   }
 
   const crumbs = getBreadcrumb(location.pathname)
@@ -170,6 +205,10 @@ export default function Layout() {
               <div className="sidebar-user-role">{ROLE_LABELS[role]}</div>
             </div>
           </div>
+          <button className="sidebar-signout" onClick={openPasswordModal}>
+            <i className="fa-light fa-key" />
+            <span>Đổi mật khẩu</span>
+          </button>
           <button className="sidebar-signout" onClick={signOut}>
             <i className="fa-light fa-arrow-right-from-bracket" />
             <span>Đăng xuất</span>
@@ -204,6 +243,30 @@ export default function Layout() {
           </div>
         </div>
       </div>
+
+      {showPasswordModal && (
+        <Modal
+          title="Đổi mật khẩu"
+          onClose={() => setShowPasswordModal(false)}
+          footer={[
+            <button key="c" className="btn" onClick={() => setShowPasswordModal(false)}>Đóng</button>,
+            <button key="s" className="btn btn-primary" onClick={handleChangePassword} disabled={pwSaving}>
+              {pwSaving ? 'Đang lưu...' : 'Đổi mật khẩu'}
+            </button>
+          ]}
+        >
+          {pwError && <div className="alert alert-error">{pwError}</div>}
+          {pwSuccess && <div className="alert alert-success">Đổi mật khẩu thành công!</div>}
+          <div className="form-group">
+            <label className="form-label">Mật khẩu mới</label>
+            <input className="form-input" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Nhập lại mật khẩu mới</label>
+            <input className="form-input" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
