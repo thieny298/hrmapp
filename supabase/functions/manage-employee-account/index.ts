@@ -19,7 +19,7 @@ function accountEmailHtml(fullName, loginEmail, password) {
     <body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',sans-serif;">
       <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.07);border:1px solid #e5e7eb;">
         <div style="background:#fafffa;padding:20px 32px;">
-          <img src="${LOGO_URL}" alt="Optways" style="height:37px;display:block;" />
+          <img src="${LOGO_URL}" alt="Optways" style="height:26px;display:block;" />
         </div>
         <div style="padding:28px 32px;font-size:14px;color:#3c4257;line-height:1.7;">
           <p>Chào mừng <strong>${fullName}</strong> đến với Optways HR,</p>
@@ -51,7 +51,7 @@ function accountEmailHtml(fullName, loginEmail, password) {
             </tr>
           </table>
 
-          <p style="margin-top:20px;">Trong thời gian đầu sử dụng, nếu có điều gì chưa rõ hoặc gặp khó khăn khi thao tác, bạn đừng ngại liên hệ với bộ phận Nhân sự để được hỗ trợ.</p>
+          <p style="margin-top:20px;">Trong thời gian đầu sử dụng, nếu có điều gì chưa rõ hoặc gặp khó khăn khi thao tác, bạn đừng ngại liên hệ với <a href="https://zalo.me/2612094772931178703" title="Liên hệ bộ phận Nhân sự qua Zalo" style="color:${PRIMARY};">bộ phận Nhân sự</a> để được hỗ trợ.</p>
           <p>Hy vọng Optways HR sẽ giúp mọi người có một trải nghiệm làm việc thuận tiện hơn, đồng thời cùng Công ty xây dựng một môi trường chủ động – minh bạch – hiện đại từ những điều nhỏ nhất.</p>
           <p>Chào mừng bạn đến với hành trình này! 🌱</p>
 

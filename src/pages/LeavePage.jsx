@@ -378,6 +378,13 @@ export default function LeavePage({ initialStep = 0 }) {
     if (!form.handover_to.trim()) return 'Vui lòng nhập người nhận bàn giao'
     if (days.length === 0) return 'Khoảng thời gian chọn không có ngày làm việc nào (toàn cuối tuần/ngày lễ)'
     if (isOverLimit) return `Số ngày nghỉ vượt quá số phép còn lại (${remainLeave} ngày)`
+
+    const overlapping = leaves.some(l =>
+      ['pending', 'approved'].includes(l.status) &&
+      form.from_date <= l.to_date && l.from_date <= form.to_date
+    )
+    if (overlapping) return 'Khoảng thời gian này trùng với một đơn nghỉ phép khác bạn đã gửi (đang chờ duyệt hoặc đã duyệt)'
+
     return null
   }
 
