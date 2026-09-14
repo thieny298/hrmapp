@@ -126,7 +126,7 @@ body {  font: 400 16px / 1.4 'Google Sans Flex'; background: var(--bg); color: v
 .page-title { font-size: 15px; font-weight: 600; }
 .topbar-right { display: flex; align-items: center; gap: 8px; }
 .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
-.breadcrumb-sep { font-size: 10px; color: var(--text-3); }
+.breadcrumb-sep { font-size: 10px; color: var(--text-3); margin-left:8px;}
 .breadcrumb-current { color: var(--text); font-weight: 600; }
 
 /* BUTTONS */

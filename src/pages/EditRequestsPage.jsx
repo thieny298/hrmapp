@@ -58,7 +58,7 @@ export default function EditRequestsPage() {
 
   return (
     <div>
-      <PageHeader title="Yêu cầu chỉnh sửa thông tin" subtitle="Xem và duyệt các yêu cầu cập nhật hồ sơ từ nhân viên" />
+      <PageHeader title="Yêu cầu chỉnh sửa" subtitle="Xem và duyệt các yêu cầu cập nhật hồ sơ từ nhân viên" />
 
       <div className="tabbar" style={{ marginBottom: '1rem' }}>
         {[['pending', 'Chờ duyệt'], ['approved', 'Đã duyệt'], ['rejected', 'Đã từ chối']].map(([v, l]) => (

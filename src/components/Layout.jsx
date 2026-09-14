@@ -13,6 +13,7 @@ const NAV = [
       { path: '/nhan-vien', label: 'Danh sách nhân viên', module: 'employees' },
       { path: '/nhan-vien/them-moi', label: 'Thêm nhân sự', module: 'employees', action: 'edit' },
       { path: '/luong', label: 'Lương', alwaysVisible: true },
+      { path: '/yeu-cau-chinh-sua', label: 'Yêu cầu chỉnh sửa', adminOnly: true },
     ]
   },
   {
@@ -28,7 +29,6 @@ const NAV = [
   { path: '/customers', label: 'Khách hàng', icon: 'fa-light fa-handshake', module: 'customers' },
   { path: '/reports', label: 'Báo cáo', icon: 'fa-light fa-chart-line', module: 'reports' },
   { path: '/users', label: 'Người dùng', icon: 'fa-light fa-gear', module: 'users' },
-  { path: '/yeu-cau-chinh-sua', label: 'Yêu cầu chỉnh sửa thông tin', icon: 'fa-light fa-pen-to-square', adminOnly: true },
   { path: '/phan-quyen', label: 'Phân quyền', icon: 'fa-light fa-shield-halved', superOnly: true },
 ]
 
@@ -46,7 +46,7 @@ const PAGE_TITLES = {
   '/customers/:id': 'Chi tiết khách hàng',
   '/reports': 'Báo cáo & Thống kê',
   '/users': 'Quản lý người dùng',
-  '/yeu-cau-chinh-sua': 'Yêu cầu chỉnh sửa thông tin',
+  '/yeu-cau-chinh-sua': 'Yêu cầu chỉnh sửa',
   '/duyet-nghi-phep': 'Duyệt nghỉ phép',
   '/phan-quyen': 'Phân quyền',
 }
