@@ -25,8 +25,8 @@ const NAV = [
       { path: '/duyet-nghi-phep', label: 'Duyệt nghỉ phép', module: 'leave', action: 'edit' },
     ]
   },
-  { path: '/tasks', label: 'Công việc', icon: 'fa-light fa-list-check', module: 'tasks' },
-  { path: '/customers', label: 'Khách hàng', icon: 'fa-light fa-handshake', module: 'customers' },
+  { path: '/tasks', label: 'Công việc', icon: 'fa-light fa-list-check', module: 'tasks', hidden: true },
+  { path: '/customers', label: 'Khách hàng', icon: 'fa-light fa-handshake', module: 'customers', hidden: true },
   { path: '/reports', label: 'Báo cáo', icon: 'fa-light fa-chart-line', module: 'reports' },
   { path: '/users', label: 'Người dùng', icon: 'fa-light fa-gear', module: 'users' },
   { path: '/phan-quyen', label: 'Phân quyền', icon: 'fa-light fa-shield-halved', superOnly: true },
@@ -99,6 +99,7 @@ export default function Layout() {
   }
 
   function canSee(item) {
+    if (item.hidden) return ['admin', 'ceo'].includes(role)
     if (item.superOnly) return isSuper()
     if (item.adminOnly) return ['admin', 'ceo'].includes(role)
     if (item.alwaysVisible) return true
