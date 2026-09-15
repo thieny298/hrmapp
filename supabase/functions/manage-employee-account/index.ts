@@ -226,11 +226,6 @@ Deno.serve(async (req) => {
           continue
         }
 
-        if (p.id === caller.id) {
-          results.push({ email: p.email, success: true, skipped: true, error: 'Bỏ qua chính tài khoản admin đang thực hiện' })
-          continue
-        }
-
         const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(p.id, {
           password: DEFAULT_PASSWORD,
         })
