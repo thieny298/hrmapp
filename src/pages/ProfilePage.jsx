@@ -123,14 +123,19 @@ export default function ProfilePage() {
   async function fetchProfile() {
     if (!viewingOtherId && !authProfile?.id) { setLoading(false); return }
     setLoading(true)
-    const query = supabase.from('employee_profiles').select('*')
-    const { data } = viewingOtherId
-      ? await query.eq('id', viewingOtherId).single()
-      : await query.eq('user_id', authProfile.id).single()
+    try {
+      const query = supabase.from('employee_profiles').select('*')
+      const { data } = viewingOtherId
+        ? await query.eq('id', viewingOtherId).single()
+        : await query.eq('user_id', authProfile.id).single()
 
-    if (data) setForm({ ...INIT_PROFILE, ...data, work_history: data.work_history || [] })
-    else if (!viewingOtherId) setForm(p => ({ ...p, full_name: authProfile.full_name || '', email: authProfile.email || '' }))
-    setLoading(false)
+      if (data) setForm({ ...INIT_PROFILE, ...data, work_history: data.work_history || [] })
+      else if (!viewingOtherId) setForm(p => ({ ...p, full_name: authProfile.full_name || '', email: authProfile.email || '' }))
+    } catch (err) {
+      console.error('fetchProfile error:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function fetchManagers() {

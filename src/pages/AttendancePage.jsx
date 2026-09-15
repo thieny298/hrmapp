@@ -1,33 +1,14 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import PageHeader from '../components/PageHeader.jsx'
+import { performCheckIn } from '../lib/checkin'
+import { supabase } from '../lib/supabase'
 
 const DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
 const MONTHS = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12']
 
 function getDaysInMonth(y, m) { return new Date(y, m + 1, 0).getDate() }
 function getFirstDay(y, m) { return new Date(y, m, 1).getDay() }
-
-function distanceMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371000
-  const toRad = d => d * Math.PI / 180
-  const dLat = toRad(lat2 - lat1)
-  const dLon = toRad(lon2 - lon1)
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
-function getLocation() {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) { resolve(null); return }
-    navigator.geolocation.getCurrentPosition(
-      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 8000 }
-    )
-  })
-}
 
 export default function AttendancePage() {
   const { profile } = useAuth()
@@ -40,13 +21,7 @@ export default function AttendancePage() {
   const [checking, setChecking] = useState(false)
   const [selected, setSelected] = useState(null)
   const [latePopup, setLatePopup] = useState(null)
-  const [officeSettings, setOfficeSettings] = useState(null)
-  const [locationNote, setLocationNote] = useState(null)
-
-  useEffect(() => {
-    supabase.from('office_settings').select('*').eq('name', 'main').single()
-      .then(({ data }) => setOfficeSettings(data))
-  }, [])
+  const [checkInError, setCheckInError] = useState(null)
 
   const today = now.toISOString().slice(0, 10)
 
@@ -66,49 +41,18 @@ export default function AttendancePage() {
 
   async function checkIn() {
     setChecking(true)
-    setLocationNote(null)
+    setCheckInError(null)
 
-    let note = null
-    if (officeSettings) {
-      const loc = await getLocation()
-      if (!loc) {
-        note = 'Không lấy được vị trí (thiết bị từ chối quyền định vị)'
-      } else {
-        const dist = distanceMeters(loc.lat, loc.lng, officeSettings.latitude, officeSettings.longitude)
-        if (dist > officeSettings.radius_meters) {
-          note = `Ngoài phạm vi văn phòng (cách ${Math.round(dist)}m, cho phép ${officeSettings.radius_meters}m)`
-        }
-      }
+    const result = await performCheckIn()
+
+    if (!result.success) {
+      setCheckInError(result.error)
+      setChecking(false)
+      return
     }
 
-    const n = new Date()
-    const totalMin = n.getHours() * 60 + n.getMinutes()
-    const startMin = 8 * 60
-    let checkInTime, status, lateMinutes = 0
-
-    if (totalMin <= startMin) {
-      checkInTime = '08:00'
-      status = 'present'
-    } else {
-      checkInTime = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`
-      status = 'late'
-      lateMinutes = totalMin - startMin
-    }
-
-    const { error } = await supabase.from('attendance_logs').insert({
-      user_id: profile.id,
-      date: today,
-      check_in: checkInTime,
-      status,
-      late_minutes: lateMinutes,
-      note,
-    })
-
-    if (!error) {
-      if (note) setLocationNote(note)
-      if (status === 'late') setLatePopup(lateMinutes)
-      fetchRecords()
-    }
+    if (result.record.status === 'late') setLatePopup(result.record.late_minutes)
+    await fetchRecords()
     setChecking(false)
   }
 
@@ -140,7 +84,6 @@ export default function AttendancePage() {
     <div>
       <PageHeader title="Chấm công" subtitle="Theo dõi giờ vào làm và lịch sử chấm công" />
 
-      {/* Late popup */}
       {latePopup && (
         <div className="modal-overlay" onClick={() => setLatePopup(null)}>
           <div className="modal" style={{ maxWidth: '340px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
@@ -152,7 +95,6 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* Detail modal */}
       {selected && (
         <div className="modal-overlay" onClick={() => setSelected(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -175,13 +117,12 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {locationNote && (
+      {checkInError && (
         <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
-          <i className="fa-light fa-location-dot" /> {locationNote} — đã ghi nhận chấm công, admin sẽ xem lại.
+          <i className="fa-light fa-triangle-exclamation" /> Chấm công không thành công: {checkInError}
         </div>
       )}
 
-      {/* Today check-in card */}
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
           <div>
@@ -207,14 +148,12 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: '12px', marginBottom: '1rem' }}>
         <div className="stat-card"><div className="stat-label">Ngày đi làm</div><div className="stat-value">{totalWork}</div><div className="stat-sub">{MONTHS[month]}</div></div>
         <div className="stat-card"><div className="stat-label">Đi trễ</div><div className="stat-value" style={{ color: totalLate > 0 ? 'var(--red)' : 'inherit' }}>{totalLate}</div><div className="stat-sub">ngày</div></div>
         <div className="stat-card"><div className="stat-label">Nghỉ phép</div><div className="stat-value">{totalLeave}</div><div className="stat-sub">ngày</div></div>
       </div>
 
-      {/* Calendar */}
       <div className="card">
         <div className="card-header">
           <button className="icon-btn" onClick={prevMonth}><i className="fa-light fa-chevron-left" /></button>
@@ -222,7 +161,6 @@ export default function AttendancePage() {
           <button className="icon-btn" onClick={nextMonth}><i className="fa-light fa-chevron-right" /></button>
         </div>
 
-        {/* Legend */}
         <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', flexWrap: 'wrap' }}>
           {[['#f0fdf4', 'Đúng giờ'], ['var(--red-light)', 'Đi trễ'], ['var(--orange-light)', 'Nghỉ phép'], ['var(--gray-bg)', 'Chưa chấm / T7 CN']].map(([bg, label]) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-2)' }}>

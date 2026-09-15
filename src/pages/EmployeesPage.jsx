@@ -36,7 +36,22 @@ export default function EmployeesPage() {
   async function fetchEmployees() {
     setLoading(true)
     const { data } = await supabase.from('employee_profiles').select('*').order('updated_at', { ascending: false })
-    setEmployees(data || [])
+    const list = data || []
+
+    const userIds = list.map(e => e.user_id).filter(Boolean)
+    let roleMap = new Map()
+    if (userIds.length) {
+      const { data: roles } = await supabase.from('user_profiles').select('id, role').in('id', userIds)
+      roleMap = new Map((roles || []).map(r => [r.id, r.role]))
+    }
+
+    const sorted = [...list].sort((a, b) => {
+      const aCeo = roleMap.get(a.user_id) === 'ceo' ? 0 : 1
+      const bCeo = roleMap.get(b.user_id) === 'ceo' ? 0 : 1
+      return aCeo - bCeo
+    })
+
+    setEmployees(sorted)
     setLoading(false)
   }
 

@@ -1,23 +1,25 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import PageHeader from '../components/PageHeader.jsx'
+import { performCheckIn } from '../lib/checkin'
 
 function initials(name = '') { return name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase() }
 
 export default function DashboardPage() {
   const { profile } = useAuth()
-  const navigate = useNavigate()
   const [todayRecord, setTodayRecord] = useState(null)
   const [loading, setLoading] = useState(true)
   const [attendanceOverview, setAttendanceOverview] = useState([])
   const [leaveToday, setLeaveToday] = useState([])
+  const [checkingIn, setCheckingIn] = useState(false)
+  const [checkInError, setCheckInError] = useState(null)
 
   const today = new Date().toISOString().slice(0, 10)
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Chào buổi sáng' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối'
   const isManagerLevel = ['admin', 'ceo', 'manager'].includes(profile?.role)
+  const isCeo = profile?.role === 'ceo'
 
   useEffect(() => { fetchData() }, [profile])
 
@@ -46,23 +48,49 @@ export default function DashboardPage() {
     const attendMap = new Map((attendRes.data || []).map(a => [a.user_id, a]))
     const leaveUserIds = new Set((leaveRes.data || []).map(l => l.user_id))
 
-    const merged = employees.map(e => {
-      const att = attendMap.get(e.user_id)
-      const onLeave = leaveUserIds.has(e.user_id)
-      return {
-        full_name: e.full_name,
-        department: e.department,
-        check_in: att?.check_in || null,
-        status: onLeave ? 'leave' : att ? att.status : 'absent',
-        late_minutes: att?.late_minutes || 0,
-      }
-    })
+    const userIds = employees.map(e => e.user_id).filter(Boolean)
+    let roleMap = new Map()
+    if (userIds.length) {
+      const { data: roles } = await supabase.from('user_profiles').select('id, role').in('id', userIds)
+      roleMap = new Map((roles || []).map(r => [r.id, r.role]))
+    }
+
+    const merged = employees
+      .filter(e => roleMap.get(e.user_id) !== 'ceo')
+      .map(e => {
+        const att = attendMap.get(e.user_id)
+        const onLeave = leaveUserIds.has(e.user_id)
+        return {
+          full_name: e.full_name,
+          department: e.department,
+          check_in: att?.check_in || null,
+          status: onLeave ? 'leave' : att ? att.status : 'absent',
+          late_minutes: att?.late_minutes || 0,
+        }
+      })
 
     setAttendanceOverview(merged)
 
     const { data: userProfiles } = await supabase.from('user_profiles').select('id, full_name')
     const nameMap = new Map((userProfiles || []).map(u => [u.id, u.full_name]))
     setLeaveToday((leaveRes.data || []).map(l => ({ ...l, full_name: nameMap.get(l.user_id) || 'Nhân viên' })))
+  }
+
+  async function handleCheckIn() {
+    setCheckingIn(true)
+    setCheckInError(null)
+
+    const result = await performCheckIn()
+
+    if (!result.success) {
+      setCheckInError(result.error)
+      setCheckingIn(false)
+      return
+    }
+
+    setTodayRecord(result.record)
+    if (isManagerLevel) fetchOverview()
+    setCheckingIn(false)
   }
 
   if (loading) return <div className="loading-screen" style={{ minHeight: '60vh' }}><div className="spinner" /></div>
@@ -83,37 +111,48 @@ export default function DashboardPage() {
               {greeting}, {profile?.full_name?.split(' ').pop() || profile?.full_name || 'bạn'}! 👋
             </div>
             <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
-              {todayRecord
+              {isCeo
                 ? 'Chúc bạn một ngày làm việc suôn sẻ 😊'
-                : 'Đừng quên chấm công hôm nay nhé!'
+                : todayRecord
+                  ? 'Chúc bạn một ngày làm việc suôn sẻ 😊'
+                  : 'Đừng quên chấm công hôm nay nhé!'
               }
             </div>
           </div>
 
-          {!todayRecord ? (
-            <button
-              className="btn"
-              onClick={() => navigate('/cham-cong')}
-              style={{ background: '#fff', color: 'var(--primary)', border: 'none', fontWeight: '600', padding: '10px 20px' }}
-            >
-              <i className="fa-light fa-right-to-bracket" />
-              Chấm công ngay
-            </button>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.15)', padding: '8px 14px', borderRadius: 'var(--radius)' }}>
-              <i className="fa-solid fa-circle-check" style={{ color: '#fff' }} />
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>
-                  Đã chấm công lúc {todayRecord.check_in}
-                </div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
-                  {todayRecord.status === 'late' ? `Đi trễ ${todayRecord.late_minutes} phút` : 'Đúng giờ ✓'}
+          {!isCeo && (
+            !todayRecord ? (
+              <button
+                className="btn"
+                onClick={handleCheckIn}
+                disabled={checkingIn}
+                style={{ background: '#fff', color: 'var(--primary)', border: 'none', fontWeight: '600', padding: '10px 20px' }}
+              >
+                <i className="fa-light fa-right-to-bracket" />
+                {checkingIn ? 'Đang chấm công...' : 'Chấm công ngay'}
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.15)', padding: '8px 14px', borderRadius: 'var(--radius)' }}>
+                <i className="fa-solid fa-circle-check" style={{ color: '#fff' }} />
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>
+                    Đã chấm công lúc {todayRecord.check_in}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
+                    {todayRecord.status === 'late' ? `Đi trễ ${todayRecord.late_minutes} phút` : 'Đúng giờ ✓'}
+                  </div>
                 </div>
               </div>
-            </div>
+            )
           )}
         </div>
       </div>
+
+      {checkInError && (
+        <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
+          <i className="fa-light fa-triangle-exclamation" /> Chấm công không thành công: {checkInError}
+        </div>
+      )}
 
       {isManagerLevel && (
         <>

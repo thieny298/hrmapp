@@ -13,26 +13,52 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
   const [form, setForm] = useState({ email: '', full_name: '', role: 'staff' })
+  const [originalEmail, setOriginalEmail] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [sendingAll, setSendingAll] = useState(false)
+  const [bulkResults, setBulkResults] = useState(null)
 
   useEffect(() => { fetchUsers() }, [])
 
   async function fetchUsers() {
     setLoading(true)
     const { data } = await supabase.from('user_profiles').select('*').order('full_name')
-    setUsers(data || [])
+    const profiles = data || []
+
+    let statusMap = new Map()
+    const { data: statusData } = await supabase.functions.invoke('manage-employee-account', {
+      body: { action: 'list-status' }
+    })
+    if (statusData?.statuses) {
+      statusMap = new Map(statusData.statuses.map(s => [s.id, s]))
+    }
+
+    const merged = profiles.map(u => ({
+      ...u,
+      last_sign_in_at: statusMap.get(u.id)?.last_sign_in_at || null,
+    }))
+
+    const sorted = [...merged].sort((a, b) => {
+      const aCeo = a.role === 'ceo' ? 0 : 1
+      const bCeo = b.role === 'ceo' ? 0 : 1
+      return aCeo - bCeo
+    })
+
+    setUsers(sorted)
     setLoading(false)
   }
 
   function openAdd() {
     setForm({ email: '', full_name: '', role: 'staff' })
+    setOriginalEmail('')
     setError(''); setSuccess(''); setModal('add')
   }
 
   function openEdit(u) {
     setForm({ ...u })
+    setOriginalEmail(u.email || '')
     setError(''); setSuccess(''); setModal('edit')
   }
 
@@ -45,15 +71,35 @@ export default function UsersPage() {
     else alert('Đã gửi email đặt lại mật khẩu!')
   }
 
+  async function sendToAll() {
+    if (!confirm('Đặt lại mật khẩu về "Optways@123" và gửi lại email thông tin đăng nhập cho TOÀN BỘ tài khoản đang có (trừ chính bạn)? Ai đã tự đổi mật khẩu trước đó cũng sẽ bị đặt lại. Hành động này không thể hoàn tác.')) return
+
+    setSendingAll(true)
+    setBulkResults(null)
+
+    const { data, error: fnErr } = await supabase.functions.invoke('manage-employee-account', {
+      body: { action: 'resend-all' }
+    })
+
+    setSendingAll(false)
+
+    if (fnErr) {
+      setBulkResults([{ email: '-', success: false, error: fnErr.message }])
+      return
+    }
+
+    setBulkResults(data.results)
+    fetchUsers()
+  }
+
   async function save() {
     setError(''); setSuccess('')
     if (!form.full_name?.trim()) { setError('Vui lòng nhập họ tên'); return }
+    if (!form.email?.trim()) { setError('Vui lòng nhập email'); return }
 
     setSaving(true)
 
     if (modal === 'add') {
-      if (!form.email?.trim()) { setError('Vui lòng nhập email'); setSaving(false); return }
-
       const { data, error: fnErr } = await supabase.functions.invoke('manage-employee-account', {
         body: { action: 'invite', email: form.email, full_name: form.full_name, role: form.role }
       })
@@ -62,7 +108,14 @@ export default function UsersPage() {
 
       setSuccess('Đã gửi email mời tạo mật khẩu tới nhân viên!')
     } else {
-      // Chỉ cập nhật profile (không đổi password ở đây)
+      const newEmail = form.email.trim()
+
+      const { data, error: emailErr } = await supabase.functions.invoke('manage-employee-account', {
+        body: { action: 'update-email', user_id: form.id, new_email: newEmail }
+      })
+      if (emailErr) { setError(emailErr.message); setSaving(false); return }
+      if (data?.error) { setError(data.error); setSaving(false); return }
+
       const { error } = await supabase.from('user_profiles').update({ full_name: form.full_name, role: form.role }).eq('id', form.id)
       if (error) { setError(error.message); setSaving(false); return }
       setSuccess('Cập nhật thành công!')
@@ -86,28 +139,46 @@ export default function UsersPage() {
           <button className="btn" onClick={async () => {
             const email = prompt('Gửi thử email tới:', 'thieny298@gmail.com')
             if (!email) return
+            const fullName = prompt('Tên hiển thị trong mail:', 'Bon')
+            if (!fullName) return
             const { data, error: fnErr } = await supabase.functions.invoke('manage-employee-account', {
-              body: { action: 'test-email', email, full_name: 'Bon' }
+              body: { action: 'test-email', email, full_name: fullName }
             })
             if (fnErr) { alert('Lỗi: ' + fnErr.message); return }
             if (data?.error) { alert('Lỗi: ' + data.error); return }
             alert(data.sent ? 'Đã gửi thành công!' : 'Gửi thất bại: ' + data.reason)
           }}>Gửi thử email</button>
+          <button className="btn" onClick={sendToAll} disabled={sendingAll}>
+            {sendingAll ? 'Đang gửi...' : 'Gửi cho toàn bộ nhân viên'}
+          </button>
           <button className="btn btn-primary" onClick={openAdd}>+ Tạo tài khoản</button>
         </div>
       </div>
+
+      {bulkResults && (
+        <div className="card" style={{ padding: '12px 16px', marginBottom: '1rem' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Kết quả gửi hàng loạt</div>
+          {bulkResults.map((r, i) => (
+            <div key={i} style={{ fontSize: '13px', color: r.success ? '#16a34a' : '#dc2626' }}>
+              {r.email}: {r.success
+                ? (r.skipped ? `Bỏ qua — ${r.error}` : `OK${r.email_sent === false ? ' — gửi mail thất bại: ' + r.email_error : ''}`)
+                : `Lỗi - ${r.error}`}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card" style={{ padding: 0 }}>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                {['Người dùng', 'Email', 'Vai trò', 'Ngày tạo', ''].map(c => <th key={c}>{c}</th>)}
+                {['Người dùng', 'Email', 'Vai trò', 'Trạng thái', 'Ngày tạo', ''].map(c => <th key={c}>{c}</th>)}
               </tr>
             </thead>
             <tbody>
               {users.length === 0
-                ? <tr><td colSpan="5"><div className="empty"><div className="empty-icon">⚙</div><div className="empty-text">Chưa có tài khoản nào</div></div></td></tr>
+                ? <tr><td colSpan="6"><div className="empty"><div className="empty-icon">⚙</div><div className="empty-text">Chưa có tài khoản nào</div></div></td></tr>
                 : users.map(u => (
                   <tr key={u.id}>
                     <td>
@@ -118,6 +189,12 @@ export default function UsersPage() {
                     </td>
                     <td style={{ color: 'var(--text-2)', fontSize: '12px' }}>{u.email}</td>
                     <td><span className={`badge ${ROLE_BADGE[u.role]}`}>{ROLES[u.role]}</span></td>
+                    <td>
+                      {u.last_sign_in_at
+                        ? <span className="badge badge-green" title={new Date(u.last_sign_in_at).toLocaleString('vi-VN')}>Đã đăng nhập</span>
+                        : <span className="badge badge-gray">Chưa đăng nhập</span>
+                      }
+                    </td>
                     <td style={{ color: 'var(--text-2)', fontSize: '12px' }}>{u.created_at ? new Date(u.created_at).toLocaleDateString('vi-VN') : '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '2px' }}>
@@ -150,12 +227,10 @@ export default function UsersPage() {
                 <label className="form-label">Họ và tên *</label>
                 <input className="form-input" value={form.full_name || ''} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Nguyễn Văn A" />
               </div>
-              {modal === 'add' && (
-                <div className="form-group">
-                  <label className="form-label">Email *</label>
-                  <input className="form-input" type="email" value={form.email || ''} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="email@congty.vn" />
-                </div>
-              )}
+              <div className="form-group">
+                <label className="form-label">Email {modal === 'edit' ? '(dùng để đăng nhập)' : '*'}</label>
+                <input className="form-input" type="email" value={form.email || ''} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="email@congty.vn" />
+              </div>
               <div className="form-group">
                 <label className="form-label">Vai trò</label>
                 <select className="form-select" value={form.role || 'employee'} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
@@ -164,7 +239,7 @@ export default function UsersPage() {
               </div>
               {modal === 'edit' && (
                 <div style={{ padding: '10px 12px', background: 'var(--bg)', borderRadius: 'var(--radius)', fontSize: '12px', color: 'var(--text-2)' }}>
-                  Để đổi mật khẩu, người dùng dùng chức năng "Quên mật khẩu" ở trang đăng nhập.
+                  Đổi email ở đây sẽ đổi luôn email dùng để đăng nhập. Để đổi mật khẩu, người dùng dùng chức năng "Quên mật khẩu" ở trang đăng nhập.
                 </div>
               )}
             </>

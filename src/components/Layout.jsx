@@ -19,10 +19,10 @@ const NAV = [
   {
     id: 'thoigian', label: 'Thời gian', icon: 'fa-light fa-clock',
     children: [
-      { path: '/cham-cong', label: 'Chấm công', alwaysVisible: true },
+      { path: '/cham-cong', label: 'Chấm công', alwaysVisible: true, hideFor: ['ceo'] },
       { path: '/nghi-phep', label: 'Nghỉ phép', alwaysVisible: true },
       { path: '/don-cua-toi', label: 'Đơn của tôi', alwaysVisible: true },
-      { path: '/duyet-nghi-phep', label: 'Duyệt nghỉ phép', module: 'leave', action: 'edit' },
+      { path: '/duyet-nghi-phep', label: 'Duyệt nghỉ phép', module: 'leave', action: 'edit', requireScopeAll: true },
     ]
   },
   { path: '/tasks', label: 'Công việc', icon: 'fa-light fa-list-check', module: 'tasks', hidden: true },
@@ -71,7 +71,7 @@ function initials(name = '') {
 }
 
 export default function Layout() {
-  const { profile, signOut, isSuper, canView, canEdit } = useAuth()
+  const { profile, signOut, isSuper, canView, canEdit, scopeAll } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const role = profile?.role || 'staff'
@@ -99,11 +99,13 @@ export default function Layout() {
   }
 
   function canSee(item) {
+    if (item.hideFor?.includes(role)) return false
     if (item.hidden) return ['admin', 'ceo'].includes(role)
     if (item.superOnly) return isSuper()
     if (item.adminOnly) return ['admin', 'ceo'].includes(role)
     if (item.alwaysVisible) return true
     if (!item.module) return true
+    if (item.requireScopeAll) return isSuper() || (canEdit(item.module) && scopeAll(item.module))
     return item.action === 'edit' ? canEdit(item.module) : canView(item.module)
   }
 

@@ -5,6 +5,7 @@ const APP_URL = Deno.env.get('APP_URL') || 'https://app.optways.net'
 const FROM_EMAIL = 'no-reply@optways.net'
 const LOGO_URL = 'https://app.optways.net/Optways-Logo.svg'
 const PRIMARY = '#065f46'
+const HR_ZALO_URL = 'https://zalo.me/2612094772931178703'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,7 +20,7 @@ function accountEmailHtml(fullName, loginEmail, password) {
     <body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',sans-serif;">
       <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.07);border:1px solid #e5e7eb;">
         <div style="background:#fafffa;padding:20px 32px;">
-          <img src="${LOGO_URL}" alt="Optways" style="height:26px;display:block;" />
+          <img src="${LOGO_URL}" alt="Optways" style="height:37px;display:block;" />
         </div>
         <div style="padding:28px 32px;font-size:14px;color:#3c4257;line-height:1.7;">
           <p>Chào mừng <strong>${fullName}</strong> đến với Optways HR,</p>
@@ -42,7 +43,7 @@ function accountEmailHtml(fullName, loginEmail, password) {
           <table role="presentation" align="center" style="margin:24px auto 0;border-collapse:collapse;">
             <tr>
               <td style="padding:0 15px;">
-                <a href="${APP_URL}" style="
+                <a href="${APP_URL}" title="Đăng nhập Optways HR" style="
                   background:${PRIMARY};color:#fff;padding:10px 22px;
                   border-radius:6px;text-decoration:none;font-weight:500;font-size:14px;
                   display:inline-block;min-width:150px;text-align:center;
@@ -51,14 +52,14 @@ function accountEmailHtml(fullName, loginEmail, password) {
             </tr>
           </table>
 
-          <p style="margin-top:20px;">Trong thời gian đầu sử dụng, nếu có điều gì chưa rõ hoặc gặp khó khăn khi thao tác, bạn đừng ngại liên hệ với <a href="https://zalo.me/2612094772931178703" title="Liên hệ bộ phận Nhân sự qua Zalo" style="color:${PRIMARY};">bộ phận Nhân sự</a> để được hỗ trợ.</p>
+          <p style="margin-top:20px;">Trong thời gian đầu sử dụng, nếu có điều gì chưa rõ hoặc gặp khó khăn khi thao tác, bạn đừng ngại liên hệ với <a href="${HR_ZALO_URL}" title="Liên hệ bộ phận Nhân sự qua Zalo" style="color:${PRIMARY};font-weight:600;">bộ phận Nhân sự</a> để được hỗ trợ.</p>
           <p>Hy vọng Optways HR sẽ giúp mọi người có một trải nghiệm làm việc thuận tiện hơn, đồng thời cùng Công ty xây dựng một môi trường chủ động – minh bạch – hiện đại từ những điều nhỏ nhất.</p>
           <p>Chào mừng bạn đến với hành trình này! 🌱</p>
 
           <p style="margin-top:20px;">Trân trọng,<br/>Optways HR</p>
         </div>
         <div style="padding:16px 32px;background:#fafafa;font-size:12px;color:#9ca3af;border-top:1px solid #f3f4f6;text-align:center;">
-          Email tự động từ hệ thống Optways · <a href="${APP_URL}" style="color:${PRIMARY};">app.optways.net</a>
+          Email tự động từ hệ thống Optways · <a href="${APP_URL}" title="Optways HR" style="color:${PRIMARY};">app.optways.net</a>
         </div>
       </div>
     </body>
@@ -162,6 +163,39 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders })
     }
 
+    if (action === 'update-email') {
+      const { user_id, new_email } = body
+      if (!user_id || !new_email) {
+        return new Response(JSON.stringify({ error: 'Thiếu user_id hoặc new_email' }), { status: 400, headers: corsHeaders })
+      }
+
+      const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
+        email: new_email,
+        email_confirm: true,
+      })
+      if (updErr) {
+        return new Response(JSON.stringify({ error: updErr.message }), { status: 400, headers: corsHeaders })
+      }
+
+      await supabaseAdmin.from('user_profiles').update({ email: new_email }).eq('id', user_id)
+      await supabaseAdmin.from('employee_profiles').update({ email: new_email }).eq('user_id', user_id)
+
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders })
+    }
+
+    if (action === 'list-status') {
+      const { data: userList, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+      if (listErr) {
+        return new Response(JSON.stringify({ error: listErr.message }), { status: 500, headers: corsHeaders })
+      }
+      const statuses = userList.users.map(u => ({
+        id: u.id,
+        last_sign_in_at: u.last_sign_in_at,
+        email_confirmed_at: u.email_confirmed_at,
+      }))
+      return new Response(JSON.stringify({ statuses }), { status: 200, headers: corsHeaders })
+    }
+
     if (action === 'test-email') {
       const { email, full_name } = body
       if (!email) {
@@ -169,6 +203,54 @@ Deno.serve(async (req) => {
       }
       const result = await sendAccountEmail(email, full_name || 'bạn', 'Optways@123')
       return new Response(JSON.stringify(result), { status: 200, headers: corsHeaders })
+    }
+
+    if (action === 'resend-all') {
+      const DEFAULT_PASSWORD = 'Optways@123'
+
+      const { data: profiles, error: profErr } = await supabaseAdmin
+        .from('user_profiles')
+        .select('id, email, full_name')
+
+      if (profErr) {
+        return new Response(JSON.stringify({ error: profErr.message }), { status: 500, headers: corsHeaders })
+      }
+
+      const results = []
+
+      for (const p of profiles) {
+        const isFakeEmail = !p.email || p.email.includes('@internal.optways.net')
+
+        if (isFakeEmail) {
+          results.push({ email: p.email || '-', success: false, skipped: true, error: 'Email nội bộ giả, không gửi' })
+          continue
+        }
+
+        if (p.id === caller.id) {
+          results.push({ email: p.email, success: true, skipped: true, error: 'Bỏ qua chính tài khoản admin đang thực hiện' })
+          continue
+        }
+
+        const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(p.id, {
+          password: DEFAULT_PASSWORD,
+        })
+
+        if (updErr) {
+          results.push({ email: p.email, success: false, error: updErr.message })
+          continue
+        }
+
+        const emailResult = await sendAccountEmail(p.email, p.full_name, DEFAULT_PASSWORD)
+
+        results.push({
+          email: p.email,
+          success: true,
+          email_sent: emailResult.sent,
+          email_error: emailResult.sent ? undefined : emailResult.reason,
+        })
+      }
+
+      return new Response(JSON.stringify({ results }), { status: 200, headers: corsHeaders })
     }
 
     if (action === 'bulk-create') {

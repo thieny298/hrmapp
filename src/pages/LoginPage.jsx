@@ -1,20 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext.jsx'
 
 export default function LoginPage() {
-  const { signIn } = useAuth()
+  const { signIn, deviceError } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (deviceError) {
+      setError(deviceError)
+      setLoading(false)
+    }
+  }, [deviceError])
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     setLoading(true)
     const { error } = await signIn(email, password)
-    if (error) setError('Email hoặc mật khẩu không đúng')
-    setLoading(false)
+    if (error) {
+      setError('Email hoặc mật khẩu không đúng')
+      setLoading(false)
+    }
   }
 
   return (
