@@ -6,6 +6,7 @@ const AuthContext = createContext(null)
 
 const SUPER_ROLES = ['admin', 'ceo']
 const DEVICE_CHECK_EVENTS = ['SIGNED_IN', 'INITIAL_SESSION']
+const SKIP_EVENTS = ['TOKEN_REFRESHED']
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -14,43 +15,29 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [deviceError, setDeviceError] = useState(null)
 
-  async function fetchPermissions(role) {
-    if (SUPER_ROLES.includes(role)) {
-      setPermissions({})
-      return
+  async function loadPermissions(role) {
+    if (SUPER_ROLES.includes(role)) return {}
+    const { data, error } = await supabase
+      .from('role_permissions')
+      .select('module, can_view, can_edit, scope')
+      .eq('role', role)
+    if (error) throw error
+    const map = {}
+    for (const row of data || []) {
+      map[row.module] = { can_view: row.can_view, can_edit: row.can_edit, scope: row.scope }
     }
-    try {
-      const { data, error } = await supabase
-        .from('role_permissions')
-        .select('module, can_view, can_edit, scope')
-        .eq('role', role)
-      if (error) throw error
-      const map = {}
-      for (const row of data || []) {
-        map[row.module] = { can_view: row.can_view, can_edit: row.can_edit, scope: row.scope }
-      }
-      setPermissions(map)
-    } catch (err) {
-      console.error('fetchPermissions error:', err)
-      setPermissions({})
-    }
+    return map
   }
 
-  async function fetchProfile(userId) {
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-      if (error) throw error
-      setProfile(data)
-      if (data) await fetchPermissions(data.role)
-    } catch (err) {
-      console.error('fetchProfile error:', err)
-      setProfile(null)
-      setPermissions({})
-    }
+  async function loadProfile(userId) {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    if (error) throw error
+    const perms = data ? await loadPermissions(data.role) : {}
+    return { data, perms }
   }
 
   async function checkDevice(session) {
@@ -64,61 +51,74 @@ export function AuthProvider({ children }) {
       deviceReqError = err
     }
 
-    if (deviceReqError || data?.status !== 'approved') {
-      let message = 'Thiết bị này chưa được phê duyệt, vui lòng đợi admin xác nhận qua email.'
-      if (deviceReqError) {
-        try {
-          const body = await deviceReqError.context.json()
-          if (body?.error) message = body.error
-        } catch {}
-      } else if (data?.error) {
-        message = data.error
-      }
-      try {
-        await supabase.auth.signOut()
-      } catch {}
-      setDeviceError(message)
-      return false
-    }
+    if (!deviceReqError && data?.status === 'approved') return { ok: true }
 
-    setDeviceError(null)
-    return true
+    let message = 'Thiết bị này chưa được phê duyệt, vui lòng đợi admin xác nhận qua email.'
+    if (deviceReqError) {
+      try {
+        const body = await deviceReqError.context.json()
+        if (body?.error) message = body.error
+      } catch {}
+    } else if (data?.error) {
+      message = data.error
+    }
+    return { ok: false, message }
   }
 
   useEffect(() => {
-    let initialized = false
+    let active = true
+    let runId = 0
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    async function handleSession(event, session, current) {
+      const isCurrent = () => active && current === runId
+
       try {
-        setUser(session?.user ?? null)
+        if (!session?.user) {
+          setProfile(null)
+          setPermissions({})
+          return
+        }
 
-        if (session?.user) {
-          if (DEVICE_CHECK_EVENTS.includes(event)) {
-            const ok = await checkDevice(session)
-            if (!ok) {
-              setProfile(null)
-              setPermissions({})
-              return
-            }
+        if (DEVICE_CHECK_EVENTS.includes(event)) {
+          const result = await checkDevice(session)
+          if (!isCurrent()) return
+          if (!result.ok) {
+            setProfile(null)
+            setPermissions({})
+            setDeviceError(result.message)
+            try { await supabase.auth.signOut() } catch {}
+            return
           }
-          await fetchProfile(session.user.id)
-        } else {
+          setDeviceError(null)
+        }
+
+        const { data, perms } = await loadProfile(session.user.id)
+        if (!isCurrent()) return
+        setProfile(data)
+        setPermissions(perms)
+      } catch (err) {
+        console.error('handleSession error:', err)
+        if (isCurrent()) {
           setProfile(null)
           setPermissions({})
         }
-      } catch (err) {
-        console.error('onAuthStateChange error:', err)
-        setProfile(null)
-        setPermissions({})
       } finally {
-        if (!initialized) {
-          initialized = true
-          setLoading(false)
-        }
+        if (isCurrent()) setLoading(false)
       }
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return
+      setUser(session?.user ?? null)
+      if (SKIP_EVENTS.includes(event)) return
+      const current = ++runId
+      setTimeout(() => handleSession(event, session, current), 0)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function signIn(email, password) {
