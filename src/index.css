@@ -300,7 +300,7 @@ input:-webkit-autofill:active {
 /* SEARCH */
 .search-wrap { position: relative; display: inline-block; }
 .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-size: 12px; pointer-events: none; }
-.search-input { padding: 8px 12px 8px 30px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; font-family: var(--font); background: var(--surface); color: var(--text); outline: none; width: 240px; height: 38px; transition: border-color 0.12s; }
+.search-input { padding: 8px 12px 8px 30px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; font-family: var(--font); background: var(--surface); color: var(--text); outline: none; width: 240px; height: 45px; transition: border-color 0.12s; }
 .search-input:focus { border-color: var(--primary); }
 
 /* ALERTS */

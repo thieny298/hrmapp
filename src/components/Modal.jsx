@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 
 export default function Modal({ title, onClose, children, footer, size = 'md' }) {
-  const widths = { sm: 380, md: 460, lg: 600 }
+  const widths = { sm: 380, md: 460, lg: 600, xl: 800 }
   const mouseDownOnOverlay = useRef(false)
 
   return (

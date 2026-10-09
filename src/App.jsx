@@ -17,6 +17,7 @@ import EmployeesPage from './pages/EmployeesPage.jsx'
 import EmployeeCreatePage from './pages/EmployeeCreatePage.jsx'
 import PermissionsPage from './pages/PermissionsPage.jsx'
 import EditRequestsPage from './pages/EditRequestsPage.jsx'
+import ExpensesPage from './pages/ExpensesPage.jsx'
 
 function ProtectedRoute({ children, allowedRoles, module, action = 'view' }) {
   const { user, profile, loading, isSuper, canView, canEdit } = useAuth()
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="nhan-vien" element={<ProtectedRoute module="employees"><EmployeesPage /></ProtectedRoute>} />
         <Route path="nhan-vien/them-moi" element={<ProtectedRoute module="employees" action="edit"><EmployeeCreatePage /></ProtectedRoute>} />
         <Route path="nhan-vien/:id" element={<ProtectedRoute module="employees"><ProfilePage /></ProtectedRoute>} />
+        <Route path="chi-phi" element={<ProtectedRoute allowedRoles={['admin', 'ceo']}><ExpensesPage /></ProtectedRoute>} />
         <Route path="phan-quyen" element={<ProtectedRoute allowedRoles={['admin', 'ceo']}><PermissionsPage /></ProtectedRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
