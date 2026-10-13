@@ -17,9 +17,10 @@ function firstOfMonth(d = new Date()) { return new Date(d.getFullYear(), d.getMo
 
 const navBtnStyle = { width: '32px', height: '32px', minWidth: 0, padding: 0, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }
 
-function StatusBadge({ status, lateMinutes }) {
+function StatusBadge({ status, lateMinutes, type, note }) {
   if (status === 'leave') return <span className="badge badge-blue">Nghỉ phép</span>
   if (status === 'absent') return <span className="badge badge-gray">Chưa chấm công</span>
+  if (type === 'remote') return <span className="badge badge-green">{note || 'WFH'}</span>
   if (status === 'late') return <span className="badge badge-amber">Trễ {lateMinutes} phút</span>
   return <span className="badge badge-green">Đúng giờ</span>
 }
@@ -49,6 +50,7 @@ export default function DashboardPage() {
   const canViewCompany = ['admin', 'ceo'].includes(role)
   const isCeo = role === 'ceo'
   const isCurrentMonth = month.getTime() === firstOfMonth().getTime()
+  const isRemoteToday = todayRecord?.type === 'remote'
 
   useEffect(() => {
     if (!userId) return
@@ -77,7 +79,7 @@ export default function DashboardPage() {
     try {
       const [employeesRes, attendRes, leaveRes] = await Promise.all([
         supabase.from('employee_profiles').select('user_id, full_name, department').eq('status', 'active').not('user_id', 'is', null),
-        supabase.from('attendance_logs').select('user_id, check_in, status, late_minutes').eq('date', today),
+        supabase.from('attendance_logs').select('user_id, check_in, status, late_minutes, type, note').eq('date', today),
         supabase.from('leave_requests').select('user_id').eq('status', 'approved').lte('from_date', today).gte('to_date', today),
       ])
 
@@ -102,6 +104,8 @@ export default function DashboardPage() {
             check_in: att?.check_in || null,
             status: att ? att.status : leaveUserIds.has(e.user_id) ? 'leave' : 'absent',
             late_minutes: att?.late_minutes || 0,
+            type: att?.type || null,
+            note: att?.note || null,
           }
         }))
     } catch (err) {
@@ -157,7 +161,7 @@ export default function DashboardPage() {
   if (!profile) return <div className="loading-screen" style={{ minHeight: '60vh' }}><div className="spinner" /></div>
 
   const checkedInCount = attendanceOverview.filter(a => a.check_in).length
-  const lateCount = attendanceOverview.filter(a => a.status === 'late').length
+  const lateCount = attendanceOverview.filter(a => a.status === 'late' && a.type !== 'remote').length
   const absentCount = attendanceOverview.filter(a => a.status === 'absent').length
   const leaveCount = attendanceOverview.filter(a => a.status === 'leave').length
   const monthLabel = `Tháng ${month.getMonth() + 1}/${month.getFullYear()}`
@@ -174,7 +178,7 @@ export default function DashboardPage() {
               {greeting}, {profile.full_name?.split(' ').pop() || profile.full_name || 'bạn'}! 👋
             </div>
             <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
-              {isCeo || todayRecord ? 'Chúc bạn một ngày làm việc suôn sẻ 😊' : 'Đừng quên chấm công hôm nay nhé!'}
+              {isRemoteToday ? 'Hôm nay bạn làm việc tại nhà, không cần chấm công nhé!' : isCeo || todayRecord ? 'Chúc bạn một ngày làm việc suôn sẻ 😊' : 'Đừng quên chấm công hôm nay nhé!'}
             </div>
           </div>
 
@@ -189,6 +193,18 @@ export default function DashboardPage() {
                 <i className="fa-light fa-right-to-bracket" />
                 {recordLoading ? 'Đang tải...' : checkingIn ? 'Đang chấm công...' : 'Chấm công ngay'}
               </button>
+            ) : isRemoteToday ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.15)', padding: '8px 14px', borderRadius: 'var(--radius)' }}>
+                <i className="fa-light fa-house-laptop" style={{ color: '#fff' }} />
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>
+                    {todayRecord.note || 'WFH'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
+                    Đã tính công · Đúng giờ ✓
+                  </div>
+                </div>
+              </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.15)', padding: '8px 14px', borderRadius: 'var(--radius)' }}>
                 <i className="fa-solid fa-circle-check" style={{ color: '#fff' }} />
@@ -265,8 +281,8 @@ export default function DashboardPage() {
                             </div>
                           </td>
                           <td style={{ color: 'var(--text-2)' }}>{a.department}</td>
-                          <td style={{ color: 'var(--text-2)' }}>{a.check_in || '—'}</td>
-                          <td><StatusBadge status={a.status} lateMinutes={a.late_minutes} /></td>
+                          <td style={{ color: 'var(--text-2)' }}>{a.type === 'remote' ? 'WFH' : a.check_in || '—'}</td>
+                          <td><StatusBadge status={a.status} lateMinutes={a.late_minutes} type={a.type} note={a.note} /></td>
                         </tr>
                       ))
                   }
