@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import PageHeader from '../components/PageHeader.jsx'
-import { performCheckIn } from '../lib/checkin'
+import { performCheckIn, performCheckOut, canCheckOut, CHECK_OUT_FROM_HOUR } from '../lib/checkin'
 import { supabase } from '../lib/supabase'
 
 const DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -10,20 +10,30 @@ const MONTHS = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6
 function getDaysInMonth(y, m) { return new Date(y, m + 1, 0).getDate() }
 function getFirstDay(y, m) { return new Date(y, m, 1).getDay() }
 
+function localDate(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function AttendancePage() {
   const { profile } = useAuth()
-  const now = new Date()
-  const [year, setYear] = useState(now.getFullYear())
-  const [month, setMonth] = useState(now.getMonth())
+  const [clock, setClock] = useState(() => new Date())
+  const [year, setYear] = useState(() => new Date().getFullYear())
+  const [month, setMonth] = useState(() => new Date().getMonth())
   const [records, setRecords] = useState([])
   const [todayRecord, setTodayRecord] = useState(null)
   const [loading, setLoading] = useState(true)
   const [checking, setChecking] = useState(false)
+  const [checkingOut, setCheckingOut] = useState(false)
   const [selected, setSelected] = useState(null)
   const [latePopup, setLatePopup] = useState(null)
   const [checkInError, setCheckInError] = useState(null)
 
-  const today = now.toISOString().slice(0, 10)
+  const today = localDate(clock)
+
+  useEffect(() => {
+    const t = setInterval(() => setClock(new Date()), 30000)
+    return () => clearInterval(t)
+  }, [])
 
   useEffect(() => { fetchRecords() }, [year, month, profile])
 
@@ -35,7 +45,9 @@ export default function AttendancePage() {
     const { data } = await supabase.from('attendance_logs').select('*')
       .eq('user_id', profile.id).gte('date', from).lte('date', to).order('date')
     setRecords(data || [])
-    setTodayRecord((data || []).find(r => r.date === today) || null)
+    const { data: todayData } = await supabase.from('attendance_logs').select('*')
+      .eq('user_id', profile.id).eq('date', localDate()).maybeSingle()
+    setTodayRecord(todayData || null)
     setLoading(false)
   }
 
@@ -56,6 +68,22 @@ export default function AttendancePage() {
     setChecking(false)
   }
 
+  async function checkOut() {
+    setCheckingOut(true)
+    setCheckInError(null)
+
+    const result = await performCheckOut()
+
+    if (!result.success) {
+      setCheckInError(result.error)
+      setCheckingOut(false)
+      return
+    }
+
+    await fetchRecords()
+    setCheckingOut(false)
+  }
+
   function prevMonth() { if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1) }
 
@@ -69,7 +97,7 @@ export default function AttendancePage() {
   const totalLeave = records.filter(r => r.status === 'leave').length
 
   function getDayClass(dateStr) {
-    const d = new Date(dateStr)
+    const d = new Date(dateStr + 'T00:00:00')
     if (d.getDay() === 0 || d.getDay() === 6) return 'absent'
     const r = recordMap[dateStr]
     if (!r) return 'absent'
@@ -78,11 +106,19 @@ export default function AttendancePage() {
     return 'normal'
   }
 
+  function checkOutLabel(r) {
+    if (!r?.check_in || r.type === 'remote') return '—'
+    return r.check_out || 'Chưa chấm giờ về'
+  }
+
   if (loading) return <div className="loading-screen" style={{ minHeight: '60vh' }}><div className="spinner" /></div>
+
+  const showCheckOut = canCheckOut(todayRecord, clock)
+  const todayDone = todayRecord && (!todayRecord.check_in || todayRecord.type === 'remote' || todayRecord.check_out)
 
   return (
     <div>
-      <PageHeader title="Chấm công" subtitle="Theo dõi giờ vào làm và lịch sử chấm công" />
+      <PageHeader title="Chấm công" subtitle="Theo dõi giờ vào, giờ về và lịch sử chấm công" />
 
       {latePopup && (
         <div className="modal-overlay" onClick={() => setLatePopup(null)}>
@@ -105,11 +141,12 @@ export default function AttendancePage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               {[
                 ['Giờ vào', selected.check_in || '—'],
+                ['Giờ về', checkOutLabel(selected)],
                 ['Trạng thái', selected.status === 'late' ? `Đi trễ ${selected.late_minutes} phút` : selected.status === 'present' ? 'Đúng giờ' : selected.status === 'leave' ? 'Nghỉ phép' : '—'],
               ].map(([k, v]) => (
-                <div key={k} style={{ padding: '12px', background: 'var(--bg)', borderRadius: 'var(--radius)' }}>
+                <div key={k} style={{ padding: '12px', background: 'var(--bg)', borderRadius: 'var(--radius)', gridColumn: k === 'Trạng thái' ? '1 / -1' : undefined }}>
                   <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: '4px' }}>{k}</div>
-                  <div style={{ fontWeight: '500' }}>{v}</div>
+                  <div style={{ fontWeight: '500', color: v === 'Chưa chấm giờ về' ? 'var(--text-2)' : 'inherit' }}>{v}</div>
                 </div>
               ))}
             </div>
@@ -127,13 +164,23 @@ export default function AttendancePage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '4px' }}>
-              Hôm nay — {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}
+              Hôm nay — {clock.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}
             </div>
             {todayRecord
-              ? <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '500', color: 'var(--green)' }}>
-                  <i className="fa-solid fa-circle-check" />
-                  Đã chấm công lúc {todayRecord.check_in}
-                  {todayRecord.status === 'late' && <span style={{ color: 'var(--amber)' }}>· Đi trễ {todayRecord.late_minutes} phút</span>}
+              ? <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '500', color: 'var(--green)' }}>
+                    <i className="fa-solid fa-circle-check" />
+                    Đã chấm công vào lúc {todayRecord.check_in}
+                    {todayRecord.status === 'late' && <span style={{ color: 'var(--amber)' }}>· Đi trễ {todayRecord.late_minutes} phút</span>}
+                  </div>
+                  {todayRecord.check_in && todayRecord.type !== 'remote' && (
+                    todayRecord.check_out
+                      ? <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '500', color: 'var(--green)', marginTop: '4px' }}>
+                          <i className="fa-solid fa-circle-check" />
+                          Đã chấm công về lúc {todayRecord.check_out}
+                        </div>
+                      : <div style={{ fontSize: '13px', color: 'var(--text-2)', marginTop: '4px' }}>Chưa chấm giờ về</div>
+                  )}
                 </div>
               : <div style={{ fontSize: '13px', color: 'var(--text-2)' }}>Chưa chấm công hôm nay</div>
             }
@@ -143,7 +190,14 @@ export default function AttendancePage() {
                 <i className="fa-light fa-right-to-bracket" />
                 {checking ? 'Đang xử lý...' : 'Chấm công vào'}
               </button>
-            : <span className="badge badge-green"><i className="fa-solid fa-check" style={{ marginRight: '4px' }} />Hoàn thành</span>
+            : showCheckOut
+              ? <button className="btn btn-primary" onClick={checkOut} disabled={checkingOut}>
+                  <i className="fa-light fa-right-from-bracket" />
+                  {checkingOut ? 'Đang xử lý...' : 'Chấm công về'}
+                </button>
+              : todayDone
+                ? <span className="badge badge-green"><i className="fa-solid fa-check" style={{ marginRight: '4px' }} />Hoàn thành</span>
+                : <span className="badge badge-gray">Chấm công về từ {CHECK_OUT_FROM_HOUR}:00</span>
           }
         </div>
       </div>
@@ -178,7 +232,8 @@ export default function AttendancePage() {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
             const rec = recordMap[dateStr]
             const isToday = dateStr === today
-            const isWeekend = new Date(dateStr + 'T00:00:00').getDay() === 0 || new Date(dateStr + 'T00:00:00').getDay() === 6
+            const dow = new Date(dateStr + 'T00:00:00').getDay()
+            const isWeekend = dow === 0 || dow === 6
             const cls = getDayClass(dateStr)
 
             return (
@@ -189,7 +244,13 @@ export default function AttendancePage() {
                 onClick={() => rec && setSelected(rec)}
               >
                 <div className="cal-day-num" style={isToday ? { color: 'var(--primary)' } : {}}>{day}</div>
-                {rec && <div className="cal-day-status">{rec.check_in}{rec.status === 'late' && <div style={{ color: 'var(--red)', fontSize: '10px' }}>+{rec.late_minutes}p</div>}</div>}
+                {rec && (
+                  <div className="cal-day-status">
+                    {rec.check_in}
+                    {rec.check_out && <div>{rec.check_out}</div>}
+                    {rec.status === 'late' && <div style={{ color: 'var(--red)', fontSize: '10px' }}>+{rec.late_minutes}p</div>}
+                  </div>
+                )}
                 {isWeekend && !rec && <div className="cal-day-status" style={{ color: 'var(--text-3)' }}>—</div>}
               </div>
             )

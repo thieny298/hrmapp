@@ -1,5 +1,7 @@
 import { supabase } from './supabase'
 
+export const CHECK_OUT_FROM_HOUR = 16
+
 export function getLocation() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) { resolve(null); return }
@@ -11,13 +13,13 @@ export function getLocation() {
   })
 }
 
-export async function performCheckIn() {
+async function invokeAttendance(fn) {
   const loc = await getLocation()
   if (!loc) {
     return { success: false, error: 'Không lấy được vị trí (thiết bị từ chối quyền định vị)' }
   }
 
-  const { data, error } = await supabase.functions.invoke('checkin', {
+  const { data, error } = await supabase.functions.invoke(fn, {
     body: { lat: loc.lat, lng: loc.lng },
   })
 
@@ -31,4 +33,16 @@ export async function performCheckIn() {
   }
 
   return { success: true, record: data.data }
+}
+
+export function performCheckIn() {
+  return invokeAttendance('checkin')
+}
+
+export function performCheckOut() {
+  return invokeAttendance('checkout')
+}
+
+export function canCheckOut(record, now = new Date()) {
+  return !!record && !!record.check_in && record.type !== 'remote' && !record.check_out && now.getHours() >= CHECK_OUT_FROM_HOUR
 }
