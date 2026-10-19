@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export const CHECK_OUT_FROM_HOUR = 16
+export const STANDARD_CHECK_OUT_HOUR = 17
 
 export function getLocation() {
   return new Promise((resolve) => {
@@ -43,6 +43,6 @@ export function performCheckOut() {
   return invokeAttendance('checkout')
 }
 
-export function canCheckOut(record, now = new Date()) {
-  return !!record && !!record.check_in && record.type !== 'remote' && !record.check_out && now.getHours() >= CHECK_OUT_FROM_HOUR
+export function canCheckOut(record) {
+  return !!record && !!record.check_in && record.type !== 'remote' && !record.check_out
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import PageHeader from '../components/PageHeader.jsx'
-import { performCheckIn, performCheckOut, canCheckOut, CHECK_OUT_FROM_HOUR } from '../lib/checkin'
+import CheckOutConfirm from '../components/CheckOutConfirm.jsx'
+import { performCheckIn, performCheckOut, canCheckOut } from '../lib/checkin'
 import { supabase } from '../lib/supabase'
 
 const DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -24,6 +25,7 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true)
   const [checking, setChecking] = useState(false)
   const [checkingOut, setCheckingOut] = useState(false)
+  const [confirmOut, setConfirmOut] = useState(false)
   const [selected, setSelected] = useState(null)
   const [latePopup, setLatePopup] = useState(null)
   const [checkInError, setCheckInError] = useState(null)
@@ -73,6 +75,7 @@ export default function AttendancePage() {
     setCheckInError(null)
 
     const result = await performCheckOut()
+    setConfirmOut(false)
 
     if (!result.success) {
       setCheckInError(result.error)
@@ -113,8 +116,7 @@ export default function AttendancePage() {
 
   if (loading) return <div className="loading-screen" style={{ minHeight: '60vh' }}><div className="spinner" /></div>
 
-  const showCheckOut = canCheckOut(todayRecord, clock)
-  const todayDone = todayRecord && (!todayRecord.check_in || todayRecord.type === 'remote' || todayRecord.check_out)
+  const showCheckOut = canCheckOut(todayRecord)
 
   return (
     <div>
@@ -129,6 +131,10 @@ export default function AttendancePage() {
             <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setLatePopup(null)}>Đã hiểu</button>
           </div>
         </div>
+      )}
+
+      {confirmOut && (
+        <CheckOutConfirm loading={checkingOut} onConfirm={checkOut} onCancel={() => setConfirmOut(false)} />
       )}
 
       {selected && (
@@ -191,13 +197,11 @@ export default function AttendancePage() {
                 {checking ? 'Đang xử lý...' : 'Chấm công vào'}
               </button>
             : showCheckOut
-              ? <button className="btn btn-primary" onClick={checkOut} disabled={checkingOut}>
+              ? <button className="btn btn-primary" onClick={() => setConfirmOut(true)} disabled={checkingOut}>
                   <i className="fa-light fa-right-from-bracket" />
                   {checkingOut ? 'Đang xử lý...' : 'Chấm công về'}
                 </button>
-              : todayDone
-                ? <span className="badge badge-green"><i className="fa-solid fa-check" style={{ marginRight: '4px' }} />Hoàn thành</span>
-                : <span className="badge badge-gray">Chấm công về từ {CHECK_OUT_FROM_HOUR}:00</span>
+              : <span className="badge badge-green"><i className="fa-solid fa-check" style={{ marginRight: '4px' }} />Hoàn thành</span>
           }
         </div>
       </div>

@@ -3,7 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000
-const CHECK_OUT_FROM_MIN = 16 * 60
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,10 +72,6 @@ Deno.serve(async (req) => {
     const today = nowVn.toISOString().slice(0, 10)
     const hours = nowVn.getUTCHours()
     const minutes = nowVn.getUTCMinutes()
-
-    if (hours * 60 + minutes < CHECK_OUT_FROM_MIN) {
-      return json({ error: "Chưa đến giờ chấm công về (từ 16:00)" }, 403)
-    }
 
     const { data: existing } = await admin
       .from("attendance_logs")

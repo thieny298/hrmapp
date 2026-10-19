@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import PageHeader from '../components/PageHeader.jsx'
+import CheckOutConfirm from '../components/CheckOutConfirm.jsx'
 import { performCheckIn, performCheckOut, canCheckOut } from '../lib/checkin'
 
 const WEEKDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -221,6 +222,7 @@ export default function DashboardPage() {
   const [overviewLoading, setOverviewLoading] = useState(false)
   const [checkingIn, setCheckingIn] = useState(false)
   const [checkingOut, setCheckingOut] = useState(false)
+  const [confirmOut, setConfirmOut] = useState(false)
   const [checkInError, setCheckInError] = useState(null)
   const [month, setMonth] = useState(firstOfMonth())
   const [summary, setSummary] = useState([])
@@ -237,7 +239,7 @@ export default function DashboardPage() {
   const isCeo = role === 'ceo'
   const isCurrentMonth = month.getTime() === firstOfMonth().getTime()
   const isRemoteToday = todayRecord?.type === 'remote'
-  const showCheckOut = canCheckOut(todayRecord, clock)
+  const showCheckOut = canCheckOut(todayRecord)
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 30000)
@@ -366,6 +368,7 @@ export default function DashboardPage() {
       setCheckInError('Lỗi kết nối, vui lòng thử lại')
     } finally {
       setCheckingOut(false)
+      setConfirmOut(false)
     }
   }
 
@@ -405,7 +408,7 @@ export default function DashboardPage() {
             <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
               {isRemoteToday
                 ? 'Hôm nay bạn làm việc tại nhà, không cần chấm công nhé!'
-                : showCheckOut
+                : showCheckOut && hour >= 16
                   ? 'Đừng quên chấm công về trước khi rời văn phòng nhé!'
                   : isCeo || todayRecord ? 'Chúc bạn một ngày làm việc suôn sẻ 😊' : 'Đừng quên chấm công hôm nay nhé!'}
             </div>
@@ -439,7 +442,7 @@ export default function DashboardPage() {
                 {checkedBlock}
                 <button
                   className="btn"
-                  onClick={handleCheckOut}
+                  onClick={() => setConfirmOut(true)}
                   disabled={checkingOut}
                   style={{ background: '#fff', color: 'var(--primary)', border: 'none', fontWeight: '600', padding: '10px 20px' }}
                 >
@@ -451,6 +454,10 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {confirmOut && (
+        <CheckOutConfirm loading={checkingOut} onConfirm={handleCheckOut} onCancel={() => setConfirmOut(false)} />
+      )}
 
       {checkInError && (
         <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
