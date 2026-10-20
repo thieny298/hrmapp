@@ -55,10 +55,15 @@ export function AuthProvider({ children }) {
 
     let message = 'Thiết bị này chưa được phê duyệt, vui lòng đợi admin xác nhận qua email.'
     if (deviceReqError) {
-      try {
-        const body = await deviceReqError.context.json()
-        if (body?.error) message = body.error
-      } catch {}
+      const status = deviceReqError?.context?.status
+      if (status === 401) {
+        message = 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.'
+      } else {
+        try {
+          const body = await deviceReqError.context.json()
+          if (body?.error) message = body.error
+        } catch {}
+      }
     } else if (data?.error) {
       message = data.error
     }
@@ -86,7 +91,7 @@ export function AuthProvider({ children }) {
             setProfile(null)
             setPermissions({})
             setDeviceError(result.message)
-            try { await supabase.auth.signOut() } catch {}
+            try { await supabase.auth.signOut({ scope: 'local' }) } catch {}
             return
           }
           setDeviceError(null)
@@ -128,7 +133,7 @@ export function AuthProvider({ children }) {
   }
 
   async function signOut() {
-    await supabase.auth.signOut()
+    try { await supabase.auth.signOut({ scope: 'local' }) } catch {}
   }
 
   function isSuper() {

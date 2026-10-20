@@ -7,6 +7,7 @@ const FROM_EMAIL = 'no-reply@optways.net'
 const ADMIN_EMAIL = 'thieny298@gmail.com'
 const LOGO_URL = 'https://app.optways.net/Optways-Logo.svg'
 const PRIMARY = '#065f46'
+const UNIQUE_VIOLATION = '23505'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -50,6 +51,29 @@ function deviceRequestHtml(userName: string, deviceLabel: string, approveUrl: st
   `
 }
 
+async function findDevice(admin: any, userId: string, deviceId: string) {
+  const { data } = await admin
+    .from('user_devices')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('device_id', deviceId)
+    .maybeSingle()
+  return data
+}
+
+function deviceResponse(device: any) {
+  if (device.status === 'approved') return json({ status: 'approved' }, 200)
+  return json({ status: 'pending', error: 'Thiết bị này đang chờ admin phê duyệt.' }, 200)
+}
+
+async function resolveInsertError(admin: any, userId: string, deviceId: string, insertError: any) {
+  if (insertError?.code === UNIQUE_VIOLATION) {
+    const device = await findDevice(admin, userId, deviceId)
+    if (device) return deviceResponse(device)
+  }
+  return json({ error: 'Lỗi khi lưu thiết bị' }, 500)
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -81,17 +105,11 @@ Deno.serve(async (req) => {
 
     const userName = profile?.full_name || 'Nhân viên'
 
-    const { data: existing } = await admin
-      .from('user_devices')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('device_id', deviceId)
-      .maybeSingle()
+    const existing = await findDevice(admin, userId, deviceId)
 
     if (existing) {
       await admin.from('user_devices').update({ last_seen_at: new Date().toISOString() }).eq('id', existing.id)
-      if (existing.status === 'approved') return json({ status: 'approved' }, 200)
-      return json({ status: 'pending', error: 'Thiết bị này đang chờ admin phê duyệt.' }, 200)
+      return deviceResponse(existing)
     }
 
     const { count } = await admin
@@ -101,12 +119,13 @@ Deno.serve(async (req) => {
       .eq('status', 'approved')
 
     if ((count || 0) < 2) {
-      await admin.from('user_devices').insert({
+      const { error: approveError } = await admin.from('user_devices').insert({
         user_id: userId,
         device_id: deviceId,
         device_label: deviceLabel,
         status: 'approved',
       })
+      if (approveError) return resolveInsertError(admin, userId, deviceId, approveError)
       return json({ status: 'approved' }, 200)
     }
 
@@ -124,7 +143,7 @@ Deno.serve(async (req) => {
       .select()
       .single()
 
-    if (insertError) return json({ error: 'Lỗi khi lưu thiết bị' }, 500)
+    if (insertError) return resolveInsertError(admin, userId, deviceId, insertError)
 
     const approveUrl = `${SUPABASE_URL}/functions/v1/device-decision?id=${inserted.id}&action=approve&token=${token}`
     const rejectUrl = `${SUPABASE_URL}/functions/v1/device-decision?id=${inserted.id}&action=reject&token=${token}`
