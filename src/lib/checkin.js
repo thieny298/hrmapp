@@ -8,16 +8,48 @@ const GEO_ERRORS = {
   3: 'Lấy vị trí quá lâu. Hãy đứng gần cửa sổ hoặc thử lại sau vài giây',
 }
 
+const GOOD_ACCURACY_METERS = 20
+const LOCATE_WINDOW_MS = 10000
+
 function locate() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
       resolve({ error: 'Thiết bị không hỗ trợ định vị' })
       return
     }
-    navigator.geolocation.getCurrentPosition(
-      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      err => resolve({ error: GEO_ERRORS[err?.code] || 'Không lấy được vị trí, vui lòng thử lại' }),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+
+    let best = null
+    let done = false
+    let watchId = null
+
+    const finish = (result) => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId)
+      resolve(result)
+    }
+
+    const timer = setTimeout(() => {
+      finish(best || { error: GEO_ERRORS[3] })
+    }, LOCATE_WINDOW_MS)
+
+    watchId = navigator.geolocation.watchPosition(
+      pos => {
+        const c = pos.coords
+        if (!best || c.accuracy < best.accuracy) {
+          best = { lat: c.latitude, lng: c.longitude, accuracy: c.accuracy }
+        }
+        if (c.accuracy <= GOOD_ACCURACY_METERS) finish(best)
+      },
+      err => {
+        if (err?.code === 1 || !best) {
+          finish({ error: GEO_ERRORS[err?.code] || 'Không lấy được vị trí, vui lòng thử lại' })
+          return
+        }
+        finish(best)
+      },
+      { enableHighAccuracy: true, timeout: LOCATE_WINDOW_MS, maximumAge: 0 }
     )
   })
 }
@@ -52,7 +84,7 @@ async function invokeAttendance(fn) {
   if (loc.error) return { success: false, error: loc.error }
 
   const { data, error } = await supabase.functions.invoke(fn, {
-    body: { lat: loc.lat, lng: loc.lng },
+    body: { lat: loc.lat, lng: loc.lng, accuracy: loc.accuracy },
   })
 
   if (error) return { success: false, error: await readError(error) }

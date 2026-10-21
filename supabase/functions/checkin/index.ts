@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000
+const MAX_ACCURACY_TOLERANCE = 30
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,6 +26,11 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function accuracyTolerance(accuracy) {
+  if (typeof accuracy !== "number" || !Number.isFinite(accuracy) || accuracy <= 0) return 0
+  return Math.min(accuracy, MAX_ACCURACY_TOLERANCE)
 }
 
 Deno.serve(async (req) => {
@@ -93,8 +99,9 @@ Deno.serve(async (req) => {
     }
 
     const dist = distanceMeters(lat, lng, office.latitude, office.longitude)
+    const tolerance = accuracyTolerance(body?.accuracy)
 
-    if (dist > office.radius_meters) {
+    if (dist - tolerance > office.radius_meters) {
       return json(
         {
           error: `Bạn đang ở ngoài phạm vi văn phòng (cách ${Math.round(dist)}m, cho phép ${office.radius_meters}m)`,
