@@ -28,9 +28,8 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-function accuracyTolerance(accuracy) {
-  if (typeof accuracy !== "number" || !Number.isFinite(accuracy) || accuracy <= 0) return 0
-  return Math.min(accuracy, MAX_ACCURACY_TOLERANCE)
+function accuracyTolerance() {
+  return MAX_ACCURACY_TOLERANCE
 }
 
 Deno.serve(async (req) => {
@@ -78,6 +77,7 @@ Deno.serve(async (req) => {
     const today = nowVn.toISOString().slice(0, 10)
     const hours = nowVn.getUTCHours()
     const minutes = nowVn.getUTCMinutes()
+    const seconds = nowVn.getUTCSeconds()
 
     const { data: existing } = await admin
       .from("attendance_logs")
@@ -109,7 +109,9 @@ Deno.serve(async (req) => {
     }
 
     const dist = distanceMeters(lat, lng, office.latitude, office.longitude)
-    const tolerance = accuracyTolerance(body?.accuracy)
+    const tolerance = accuracyTolerance()
+
+    console.log(JSON.stringify({ fn: "checkout", userId, lat, lng, accuracy: body?.accuracy ?? null, dist: Math.round(dist) }))
 
     if (dist - tolerance > office.radius_meters) {
       return json(
@@ -120,7 +122,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    const checkOutTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+    const checkOutTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
 
     const { data: updated, error: updateError } = await admin
       .from("attendance_logs")

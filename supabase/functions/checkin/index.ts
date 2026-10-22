@@ -114,7 +114,8 @@ Deno.serve(async (req) => {
     const minutes = nowVn.getUTCMinutes()
     const totalMin = hours * 60 + minutes
     const startMin = 8 * 60
-    const checkInTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+    const seconds = nowVn.getUTCSeconds()
+    const checkInTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
     let status, lateMinutes = 0
 
     if (totalMin <= startMin) {
