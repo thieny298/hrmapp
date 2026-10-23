@@ -32,6 +32,23 @@ function accuracyTolerance() {
   return MAX_ACCURACY_TOLERANCE
 }
 
+async function verifyDevice(admin, userId, deviceId) {
+  const { data: rows } = await admin
+    .from("user_devices")
+    .select("id, user_id, status")
+    .eq("device_id", deviceId)
+    .order("created_at", { ascending: true })
+
+  if (!rows || rows.length === 0) return false
+  if (rows[0].user_id !== userId) return false
+
+  const mine = rows.find((r) => r.user_id === userId)
+  if (!mine || mine.status !== "approved") return false
+
+  await admin.from("user_devices").update({ last_seen_at: new Date().toISOString() }).eq("id", mine.id)
+  return true
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
@@ -62,6 +79,16 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
+
+    const deviceId = body?.device_id
+    if (typeof deviceId !== "string" || !deviceId) {
+      return json({ error: "Thiếu thông tin thiết bị, vui lòng tải lại trang" }, 400)
+    }
+
+    const deviceOk = await verifyDevice(admin, userId, deviceId)
+    if (!deviceOk) {
+      return json({ error: "Thiết bị này chưa được duyệt để chấm công" }, 403)
+    }
 
     const { data: profile } = await admin
       .from("user_profiles")

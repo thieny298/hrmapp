@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { getDeviceId } from './device'
 
 export const STANDARD_CHECK_OUT_HOUR = 17
 
@@ -84,7 +85,7 @@ async function invokeAttendance(fn) {
   if (loc.error) return { success: false, error: loc.error }
 
   const { data, error } = await supabase.functions.invoke(fn, {
-    body: { lat: loc.lat, lng: loc.lng, accuracy: loc.accuracy },
+    body: { lat: loc.lat, lng: loc.lng, accuracy: loc.accuracy, device_id: getDeviceId() },
   })
 
   if (error) return { success: false, error: await readError(error) }
